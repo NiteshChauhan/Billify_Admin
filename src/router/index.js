@@ -16,6 +16,7 @@ import StockLedger from "@/views/stock/StockLedger.vue";
 
 import PurchaseCreate from "@/views/purchase/PurchaseCreate.vue";
 
+
 const routes = [
   /* ---------- AUTH ---------- */
   {
@@ -94,6 +95,10 @@ const routes = [
         component: PurchaseCreate,
       },
       {
+        path: "/purchase/edit/:id",
+        component: () => import("@/views/purchase/PurchaseEdit.vue")
+      },
+      {
         path: "purchase/:id",
         name: "purchase-view",
         component: () => import("@/views/purchase/PurchaseView.vue"),
@@ -155,6 +160,10 @@ const routes = [
       {
         path: "/sales/create",
         component: () => import("@/views/sales/SalesCreate.vue"),
+      },
+      {
+        path: "/sales/edit/:id",
+        component: () => import("@/views/sales/SalesEdit.vue")
       },
       {
         path: "/sales/:id",
