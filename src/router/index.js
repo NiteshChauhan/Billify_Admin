@@ -109,44 +109,24 @@ const routes = [
         component: () => import("@/views/purchase/PurchasePayment.vue"),
       },
       {
-        path: "suppliers",
-        name: "supplier-list",
-        component: () => import("@/views/suppliers/SupplierList.vue"),
+        path: "users",
+        name: "user-list",
+        component: () => import("@/views/users/UserList.vue"),
       },
       {
-        path: "suppliers/create",
-        name: "supplier-create",
-        component: () => import("@/views/suppliers/SupplierForm.vue"),
+        path: "users/create",
+        name: "user-create",
+        component: () => import("@/views/users/UserForm.vue"),
       },
       {
-        path: "suppliers/edit/:id",
-        name: "supplier-edit",
-        component: () => import("@/views/suppliers/SupplierForm.vue"),
-      },
-
-      {
-        path: "vendors",
-        name: "vendor-list",
-        component: () => import("@/views/vendors/VendorList.vue"),
+        path: "users/edit/:id",
+        name: "user-edit",
+        component: () => import("@/views/users/UserForm.vue"),
       },
       {
-        path: "vendors/create",
-        name: "vendor-create",
-        component: () => import("@/views/vendors/VendorForm.vue"),
-      },
-      {
-        path: "vendors/edit/:id",
-        name: "vendor-edit",
-        component: () => import("@/views/vendors/VendorForm.vue"),
-      },
-      {
-        path: "/vendors/:vendorId/ledger",
-        component: () => import("@/views/vendors/VendorLedger.vue"),
-      },
-      {
-        path: "suppliers/ledger/:id",
-        name: "supplier-ledger",
-        component: () => import("@/views/suppliers/SupplierLedger.vue"),
+        path: "users/:userId/ledger",
+        name: "user-ledger",
+        component: () => import("@/views/users/UserLedger.vue"),
       },
       {
         path: "reports/supplier-outstanding",

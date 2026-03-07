@@ -6,16 +6,11 @@
     <div class="header-grid">
       <div>
         <label>Supplier</label>
-        <select v-model="form.supplierId">
-            <option value="">Select Supplier</option>
-            <option
-                v-for="s in suppliers"
-                :key="s._id"
-                :value="String(s._id)"
-            >
-                {{ s.name }}
-            </option>
-        </select>
+        <UserSelect
+          v-model="form.supplierId"
+          :users="supplierUsers"
+          placeholder="Select Supplier"
+        />
       </div>
 
       <div>
@@ -108,6 +103,9 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import http from "@/api/http";
+import { getUsersApi } from "@/api/userApi";
+import { hasUserRole } from "@/utils/userRole";
+import UserSelect from "@/components/UserSelect.vue";
 import {
   getPurchaseByIdApi,
   updatePurchaseApi
@@ -116,7 +114,7 @@ import {
 const router = useRouter();
 const route = useRoute();
 
-const suppliers = ref([]);
+const users = ref([]);
 const products = ref([]);
 const loaded = ref(false);
 
@@ -141,7 +139,7 @@ onMounted(async () => {
   const id = route.params.id;
 
   // Load dropdown data
-  suppliers.value = (await http.get("/suppliers")).data;
+  users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
 
   // Load purchase data
@@ -150,7 +148,7 @@ onMounted(async () => {
 
   // ✅ Convert supplierId to string
   form.supplierId = String(
-    data.supplierId?._id || data.supplierId || ""
+    data.partyId?._id || data.supplierId?._id || data.partyId || data.supplierId || ""
   );
 
   form.invoiceDate = data.invoiceDate?.substring(0, 10);
@@ -169,6 +167,10 @@ onMounted(async () => {
 
   loaded.value = true;
 });
+
+const supplierUsers = computed(() =>
+  users.value.filter((user) => hasUserRole(user, "supplier")),
+);
 
 /* 🔄 Product change */
 const onProductChange = async (item) => {
@@ -193,8 +195,16 @@ const subtotal = computed(() =>
 const total = computed(() => subtotal.value + form.tax);
 
 const update = async () => {
+  if (!form.supplierId) {
+    alert("Supplier is required");
+    return;
+  }
+
   const id = route.params.id;
-  await updatePurchaseApi(id, form);
+  await updatePurchaseApi(id, {
+    ...form,
+    partyId: form.supplierId,
+  });
   router.push("/purchase");
 };
 </script>

@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="invoice">
     <h2>Purchase Invoice</h2>
 
     <div class="info">
-      <div><strong>Supplier:</strong> {{ data.supplierId?.name }}</div>
+      <div><strong>Supplier:</strong> {{ data.partyId?.name || data.supplierId?.name }}</div>
       <div><strong>Date:</strong> {{ formatDate(data.invoiceDate) }}</div>
       <div><strong>Status:</strong> {{ data.status }}</div>
     </div>
@@ -11,33 +11,31 @@
     <table>
       <thead>
         <tr>
-          <th style=" text-align:left;">Product</th>
+          <th style="text-align: left">Product</th>
           <th>Qty</th>
           <th>Rate</th>
           <th>Amount</th>
         </tr>
       </thead>
-
       <tbody>
         <tr v-for="i in data.items" :key="i._id">
-          <td style=" text-align:left;" >{{ i.productId?.name }}</td>
+          <td style="text-align: left">{{ i.productId?.name }}</td>
           <td>{{ i.quantity }}</td>
-          <td>₹ {{ i.rate }}</td>
-          <td>₹ {{ i.amount }}</td>
+          <td>Rs {{ i.rate }}</td>
+          <td>Rs {{ i.amount }}</td>
         </tr>
       </tbody>
     </table>
 
     <div class="totals">
-      <div>Subtotal: ₹ {{ data.subtotal }}</div>
-      <div>Tax: ₹ {{ data.tax }}</div>
-      <div><strong>Total: ₹ {{ data.totalAmount }}</strong></div>
-      <div>Paid: ₹ {{ data.paidAmount }}</div>
+      <div>Subtotal: Rs {{ data.subtotal }}</div>
+      <div>Tax: Rs {{ data.tax }}</div>
+      <div><strong>Total: Rs {{ data.totalAmount }}</strong></div>
+      <div>Paid: Rs {{ data.paidAmount }}</div>
     </div>
 
     <div class="payments" v-if="payments.length">
       <h3>Payments</h3>
-
       <table>
         <thead>
           <tr>
@@ -45,29 +43,29 @@
             <th>Mode</th>
             <th>Ref No</th>
             <th>Amount</th>
+            <th>Bill</th>
           </tr>
         </thead>
-
         <tbody>
           <tr v-for="p in payments" :key="p._id">
             <td>{{ formatDate(p.paymentDate) }}</td>
             <td>{{ p.paymentMode }}</td>
             <td>{{ p.referenceNo || "-" }}</td>
-            <td>₹ {{ p.amount }}</td>
+            <td>Rs {{ p.amount }}</td>
+            <td>
+              <router-link :to="`/purchase/${data._id}`">View Bill</router-link>
+              |
+              <router-link v-if="isSameDay(data.invoiceDate)" :to="`/purchase/edit/${data._id}`">Edit Bill</router-link>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <button @click="openPDF">Download PDF</button>
-    <router-link
-        class="btn"
-        :to="`/purchase/${data._id}/payment`"
-      >
-        Make Payment
-      </router-link>
-
-    <router-link to="/purchase">← Back</router-link>
+    <button @click="createPurchaseReturn">Return Items</button>
+    <router-link class="btn" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
+    <router-link to="/purchase">Back</router-link>
   </div>
 </template>
 
@@ -76,60 +74,46 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { useAuthStore } from "@/stores/authStore";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const route = useRoute();
 const data = ref({ items: [] });
 const payments = ref([]);
 
-onMounted(async () => {
+const load = async () => {
   data.value = (await http.get(`/purchase/${route.params.id}`)).data;
-  payments.value = (await http.get(`/payments/invoice/${route.params.id}`)).data;
-});
+  payments.value = (await http.get(`/payments/invoice/${route.params.id}`, { params: getFinancialYearParams() })).data;
+};
 
-const formatDate = d =>
-  new Date(d).toLocaleDateString();
+onMounted(load);
 
-  const auth = useAuthStore();
+const formatDate = (d) => new Date(d).toLocaleDateString();
+const isSameDay = (d) => new Date(d).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
 
-  const openPDF = () => {
-    const token = auth.token;
+const auth = useAuthStore();
+const openPDF = () => {
+  const token = auth.token;
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${route.params.id}?token=${token}`, "_blank");
+};
 
-    window.open(
-      `${import.meta.env.VITE_API_URL}/invoice-pdf/purchase/${route.params.id}?token=${token}`,
-      "_blank"
-    );
+const createPurchaseReturn = async () => {
+  const first = data.value.items?.[0];
+  if (!first) return;
+  const qty = Number(prompt("Return quantity for first item", "1"));
+  if (!qty || qty <= 0) return;
+
+  await http.post("/returns/purchase", {
+    billId: data.value._id,
+    items: [{ productId: first.productId?._id || first.productId, quantity: qty, rate: first.rate }],
+  });
+  await load();
 };
 </script>
 
 <style scoped>
-.invoice {
-  max-width: 900px;
-  margin: auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-th, td {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
-  text-align:right;
-}
-
-.totals {
-  text-align: right;
-  margin-top: 20px;
-}
+.invoice { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+.info { display: flex; justify-content: space-between; margin-bottom: 15px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
+.totals { text-align: right; margin-top: 20px; }
 </style>

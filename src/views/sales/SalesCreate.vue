@@ -3,12 +3,11 @@
     <h2>Create Sales Invoice</h2>
 
     <label>Customer</label>
-    <select v-model="vendorId">
-      <option value="">Select Customer</option>
-      <option v-for="v in vendors" :key="v._id" :value="v._id">
-        {{ v.name }}
-      </option>
-    </select>
+    <UserSelect
+      v-model="vendorId"
+      :users="vendorUsers"
+      placeholder="Select Customer"
+    />
 
     <table>
       <thead>
@@ -59,10 +58,13 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import http from "@/api/http";
+import { getUsersApi } from "@/api/userApi";
+import { hasUserRole } from "@/utils/userRole";
+import UserSelect from "@/components/UserSelect.vue";
 
 const router = useRouter();
 
-const vendors = ref([]);
+const users = ref([]);
 const products = ref([]);
 
 const vendorId = ref("");
@@ -71,9 +73,13 @@ const tax = ref(0);
 const paidAmount = ref(0);
 
 onMounted(async () => {
-  vendors.value = (await http.get("/vendors")).data;
+  users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
 });
+
+const vendorUsers = computed(() =>
+  users.value.filter((user) => hasUserRole(user, "customer")),
+);
 
 const add = () => items.value.push({ productId: "", quantity: 1, rate: 0 });
 
@@ -84,8 +90,13 @@ const total = computed(
 );
 
 const save = async () => {
+  if (!vendorId.value) {
+    alert("Customer is required");
+    return;
+  }
+
   await http.post("/sales", {
-    vendorId: vendorId.value,
+    partyId: vendorId.value,
     items: items.value,
     tax: tax.value,
     paidAmount: paidAmount.value,

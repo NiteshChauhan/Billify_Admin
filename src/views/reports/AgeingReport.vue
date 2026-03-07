@@ -55,8 +55,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const tab = ref("SUPPLIER");
 const data = ref([]);
@@ -67,14 +68,21 @@ const switchTab = async (t) => {
 };
 
 const load = async () => {
-  const url =
-    tab.value === "SUPPLIER" ? "/suppliers/ageing" : "/vendors/ageing";
-
-  const res = await http.get(url);
+  const role = tab.value === "SUPPLIER" ? "supplier" : "customer";
+  const res = await http.get("/reports/ageing", {
+    params: { ...getFinancialYearParams(), role },
+  });
   data.value = res.data;
 };
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  window.addEventListener("fy-changed", load);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("fy-changed", load);
+});
 
 const rows = computed(() => data.value);
 

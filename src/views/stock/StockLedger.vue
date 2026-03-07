@@ -69,8 +69,8 @@ const buildLedger = (data) => {
   let balance = 0;
 
   rows.value = data.map(e => {
-    const inQty = e.type !== "SALE" ? e.quantity : 0;
-    const outQty = e.type === "SALE" ? e.quantity : 0;
+    const inQty = ["OPENING", "PURCHASE", "SALE_RETURN"].includes(e.type) ? e.quantity : 0;
+    const outQty = ["SALE", "PURCHASE_RETURN"].includes(e.type) ? e.quantity : 0;
 
     balance += inQty - outQty;
 
@@ -80,8 +80,14 @@ const buildLedger = (data) => {
         e.type === "OPENING"
           ? "Opening Stock"
           : e.type === "PURCHASE"
-          ? "Purchase"
-          : "Sale",
+            ? "Purchase"
+            : e.type === "SALE"
+              ? "Sale"
+              : e.type === "SALE_RETURN"
+                ? "Sale Return"
+                : e.type === "PURCHASE_RETURN"
+                  ? "Purchase Return"
+                  : "Adjustment",
       inQty: inQty || "",
       outQty: outQty || "",
       rate: e.rate ?? "-",

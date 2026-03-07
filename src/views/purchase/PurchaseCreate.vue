@@ -6,12 +6,11 @@
     <div class="header-grid">
       <div>
         <label>Supplier</label>
-        <select v-model="form.supplierId">
-          <option value="">Select Supplier</option>
-          <option v-for="s in suppliers" :key="s._id" :value="s._id">
-            {{ s.name }}
-          </option>
-        </select>
+        <UserSelect
+          v-model="form.supplierId"
+          :users="supplierUsers"
+          placeholder="Select Supplier"
+        />
       </div>
 
       <div>
@@ -96,11 +95,14 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { createPurchaseApi } from "@/api/purchaseApi";
 import http from "@/api/http";
+import { getUsersApi } from "@/api/userApi";
+import { hasUserRole } from "@/utils/userRole";
+import UserSelect from "@/components/UserSelect.vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const suppliers = ref([]);
+const users = ref([]);
 const products = ref([]);
 
 const form = reactive({
@@ -121,9 +123,13 @@ function createItem() {
 }
 
 onMounted(async () => {
-  suppliers.value = (await http.get("/suppliers")).data;
+  users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
 });
+
+const supplierUsers = computed(() =>
+  users.value.filter((user) => hasUserRole(user, "supplier")),
+);
 
 /* 🔄 When product selected */
 const onProductChange = async (item) => {
@@ -151,7 +157,15 @@ const subtotal = computed(() =>
 const total = computed(() => subtotal.value + form.tax);
 
 const save = async () => {
-  await createPurchaseApi(form);
+  if (!form.supplierId) {
+    alert("Supplier is required");
+    return;
+  }
+
+  await createPurchaseApi({
+    ...form,
+    partyId: form.supplierId,
+  });
   router.push("/purchase");
 };
 </script>

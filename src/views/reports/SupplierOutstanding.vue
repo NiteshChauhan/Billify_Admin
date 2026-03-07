@@ -14,21 +14,15 @@
       </thead>
 
       <tbody>
-        <tr v-for="s in report" :key="s.supplierId">
-          <td>{{ s.supplierName }}</td>
-          <td class="num">₹ {{ s.totalPurchase }}</td>
-          <td class="num">₹ {{ s.totalPaid }}</td>
-          <td
-            class="num"
-            :class="{ danger: s.outstanding > 0 }"
-          >
-            ₹ {{ s.outstanding }}
+        <tr v-for="s in report" :key="s.userId">
+          <td>{{ s.userName }}</td>
+          <td class="num">Rs {{ s.total }}</td>
+          <td class="num">Rs {{ s.paid }}</td>
+          <td class="num" :class="{ danger: s.outstanding > 0 }">
+            Rs {{ s.outstanding }}
           </td>
           <td>
-            <router-link
-              :to="`/suppliers/ledger/${s.supplierId}`"
-              class="link"
-            >
+            <router-link :to="`/users/${s.userId}/ledger`" class="link">
               View Ledger
             </router-link>
           </td>
@@ -38,9 +32,9 @@
       <tfoot>
         <tr>
           <th>Total</th>
-          <th class="num">₹ {{ totalPurchase }}</th>
-          <th class="num">₹ {{ totalPaid }}</th>
-          <th class="num">₹ {{ totalOutstanding }}</th>
+          <th class="num">Rs {{ totalPurchase }}</th>
+          <th class="num">Rs {{ totalPaid }}</th>
+          <th class="num">Rs {{ totalOutstanding }}</th>
           <th></th>
         </tr>
       </tfoot>
@@ -49,25 +43,43 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const report = ref([]);
 
+const load = async () => {
+  report.value = (await http.get("/reports/outstanding", {
+    params: { ...getFinancialYearParams(), role: "supplier" },
+  })).data.map((i) => ({
+    userId: i.userId || i.partyId || i._id,
+    userName: i.userName || i.partyName || i.name,
+    total: i.total ?? i.totalPurchase ?? 0,
+    paid: i.paid ?? i.totalPaid ?? 0,
+    outstanding: i.outstanding ?? 0,
+  }));
+};
+
 onMounted(async () => {
-  report.value = (await http.get("/reports/supplier-outstanding")).data;
+  await load();
+  window.addEventListener("fy-changed", load);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("fy-changed", load);
 });
 
 const totalPurchase = computed(() =>
-  report.value.reduce((t, r) => t + r.totalPurchase, 0)
+  report.value.reduce((t, r) => t + r.total, 0),
 );
 
 const totalPaid = computed(() =>
-  report.value.reduce((t, r) => t + r.totalPaid, 0)
+  report.value.reduce((t, r) => t + r.paid, 0),
 );
 
 const totalOutstanding = computed(() =>
-  report.value.reduce((t, r) => t + r.outstanding, 0)
+  report.value.reduce((t, r) => t + r.outstanding, 0),
 );
 </script>
 
@@ -85,7 +97,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 10px;
   border-bottom: 1px solid #ddd;
 }

@@ -32,7 +32,7 @@
             <tr v-for="i in invoices" :key="i._id">
               <td class="bold">{{ i.invoiceNo }}</td>
               <td>{{ formatDate(i.invoiceDate) }}</td>
-              <td>{{ i.vendorId?.name }}</td>
+              <td>{{ i.partyId?.name || i.customerId?.name || i.vendorId?.name }}</td>
               <td>₹ {{ i.totalAmount }}</td>
               <td>₹ {{ i.paidAmount }}</td>
               <td>
@@ -63,14 +63,26 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import http from "@/api/http";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const invoices = ref([]);
 
-onMounted(async () => {
-  const res = await http.get("/sales");
+const load = async () => {
+  const res = await http.get("/sales", {
+    params: getFinancialYearParams(),
+  });
   invoices.value = res.data;
+};
+
+onMounted(async () => {
+  await load();
+  window.addEventListener("fy-changed", load);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("fy-changed", load);
 });
 
 const formatDate = (d) => new Date(d).toLocaleDateString();

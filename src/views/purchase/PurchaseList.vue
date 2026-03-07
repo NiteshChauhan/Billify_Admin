@@ -30,7 +30,7 @@
           <tbody>
             <tr v-for="inv in invoices" :key="inv._id">
               <td>{{ formatDate(inv.invoiceDate) }}</td>
-              <td class="bold">{{ inv.supplierId?.name }}</td>
+              <td class="bold">{{ inv.partyId?.name || inv.supplierId?.name }}</td>
               <td>₹ {{ inv.totalAmount }}</td>
               <td>₹ {{ inv.paidAmount }}</td>
               <td>
@@ -65,13 +65,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import http from "@/api/http";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const invoices = ref([]);
 
+const load = async () => {
+  invoices.value = (await http.get("/purchase", {
+    params: getFinancialYearParams(),
+  })).data;
+};
+
 onMounted(async () => {
-  invoices.value = (await http.get("/purchase")).data;
+  await load();
+  window.addEventListener("fy-changed", load);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("fy-changed", load);
 });
 
 const formatDate = d =>

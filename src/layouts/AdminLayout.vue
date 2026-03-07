@@ -12,6 +12,7 @@
     <!-- SIDEBAR -->
     <aside :class="['sidebar', { open: isSidebarOpen }]">
       <h3 class="logo">Billing ERP</h3>
+      <FinancialYearSelect />
 
       <nav @click="closeSidebar">
         <router-link to="/" class="nav-item" exact-active-class="active">
@@ -19,8 +20,7 @@
         </router-link>
 
         <router-link to="/products" class="nav-item">Products</router-link>
-        <router-link to="/suppliers" class="nav-item">Suppliers</router-link>
-        <router-link to="/vendors" class="nav-item">Customers</router-link>
+        <router-link to="/users" class="nav-item">Users</router-link>
 
         <div class="menu">
           <div class="menu-title">Purchase</div>
@@ -68,6 +68,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import FinancialYearSelect from "@/components/FinancialYearSelect.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

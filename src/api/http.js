@@ -5,12 +5,9 @@ const http = axios.create({
   baseURL:
     import.meta.env.VITE_API_BASE_URL ||
     "https://node-backend-gules-two.vercel.app/api",
-
   headers: {
     "Content-Type": "application/json",
   },
-
-  withCredentials: true, // 🔥 IMPORTANT for Vercel + CORS
 });
 
 /* ================= REQUEST INTERCEPTOR ================= */
@@ -42,3 +39,4 @@ http.interceptors.response.use(
 );
 
 export default http;
+

@@ -4,16 +4,11 @@
 
     <!-- CUSTOMER -->
     <label>Customer</label>
-    <select v-model="vendorId">
-      <option value="">Select Customer</option>
-      <option
-        v-for="v in vendors"
-        :key="v._id"
-        :value="String(v._id)"
-      >
-        {{ v.name }}
-      </option>
-    </select>
+    <UserSelect
+      v-model="vendorId"
+      :users="vendorUsers"
+      placeholder="Select Customer"
+    />
 
     <!-- ITEMS -->
     <table>
@@ -87,6 +82,9 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
+import { getUsersApi } from "@/api/userApi";
+import { hasUserRole } from "@/utils/userRole";
+import UserSelect from "@/components/UserSelect.vue";
 import {
   getSalesByIdApi,
   updateSalesApi
@@ -95,7 +93,7 @@ import {
 const router = useRouter();
 const route = useRoute();
 
-const vendors = ref([]);
+const users = ref([]);
 const products = ref([]);
 
 const vendorId = ref("");
@@ -109,7 +107,7 @@ onMounted(async () => {
   const id = route.params.id;
 
   // Load dropdown data
-  vendors.value = (await http.get("/vendors")).data;
+  users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
 
   // Load invoice data
@@ -118,7 +116,7 @@ onMounted(async () => {
 
   // ✅ Normalize vendorId
   vendorId.value = String(
-    data.vendorId?._id || data.vendorId || ""
+    data.partyId?._id || data.vendorId?._id || data.partyId || data.vendorId || ""
   );
 
   tax.value = data.tax || 0;
@@ -135,6 +133,10 @@ onMounted(async () => {
 
   loaded.value = true;
 });
+
+const vendorUsers = computed(() =>
+  users.value.filter((user) => hasUserRole(user, "customer")),
+);
 
 const add = () =>
   items.value.push({
@@ -155,10 +157,15 @@ const total = computed(
 );
 
 const update = async () => {
+  if (!vendorId.value) {
+    alert("Customer is required");
+    return;
+  }
+
   const id = route.params.id;
 
   await updateSalesApi(id, {
-    vendorId: vendorId.value,
+    partyId: vendorId.value,
     items: items.value,
     tax: tax.value,
     paidAmount: paidAmount.value

@@ -49,14 +49,7 @@
           </td>
 
           <td>
-            <router-link
-              v-if="tab === 'SUPPLIER'"
-              :to="`/suppliers/${r._id}/ledger`"
-            >
-              View Ledger
-            </router-link>
-
-            <router-link v-else :to="`/vendors/${r._id}/ledger`">
+            <router-link :to="`/users/${r._id}/ledger`">
               View Ledger
             </router-link>
           </td>
@@ -79,8 +72,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
+import { getFinancialYearParams } from "@/utils/financialYear";
 
 const tab = ref("SUPPLIER");
 const data = ref([]);
@@ -91,28 +85,27 @@ const switchTab = async (t) => {
 };
 
 const load = async () => {
-  if (tab.value === "SUPPLIER") {
-    const res = await http.get("/suppliers/outstanding");
-    data.value = res.data.map((i) => ({
-      _id: i.supplierId,
-      name: i.supplierName,
-      total: i.totalPurchase,
-      paid: i.totalPaid,
-      outstanding: i.outstanding,
-    }));
-  } else {
-    const res = await http.get("/vendors/outstanding");
-    data.value = res.data.map((i) => ({
-      _id: i.vendorId,
-      name: i.vendorName,
-      total: i.totalSales,
-      paid: i.totalReceived,
-      outstanding: i.outstanding,
-    }));
-  }
+  const role = tab.value === "SUPPLIER" ? "supplier" : "customer";
+  const res = await http.get("/reports/outstanding", {
+    params: { ...getFinancialYearParams(), role },
+  });
+  data.value = res.data.map((i) => ({
+    _id: i.userId || i.partyId || i._id,
+    name: i.userName || i.partyName || i.name,
+    total: i.total ?? i.totalPurchase ?? i.totalSales ?? 0,
+    paid: i.paid ?? i.totalPaid ?? i.totalReceived ?? 0,
+    outstanding: i.outstanding ?? 0,
+  }));
 };
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  window.addEventListener("fy-changed", load);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("fy-changed", load);
+});
 
 const rows = computed(() => data.value);
 
