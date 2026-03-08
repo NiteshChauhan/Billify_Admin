@@ -41,9 +41,11 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 
+const route = useRoute();
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
@@ -52,6 +54,7 @@ const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
 const load = async () => {
   const params = { ...getFinancialYearParams(), billType: "PURCHASE" };
+  if (route.query.billId) params.billId = String(route.query.billId);
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
   const res = await http.get("/returns", {

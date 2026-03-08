@@ -69,6 +69,30 @@
         </tbody>
       </table>
     </div>
+
+    <div v-if="returns.length" class="payments">
+      <h3>Sale Returns</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Return Invoice</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>View</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in returns" :key="r._id">
+            <td>{{ r.returnNo || "-" }}</td>
+            <td>{{ formatDate(r.returnDate) }}</td>
+            <td>Rs {{ r.totalAmount }}</td>
+            <td>
+              <router-link :to="`/sale-return?billId=${data._id}`">View</router-link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -82,10 +106,14 @@ const route = useRoute();
 const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
+const returns = ref([]);
 
 const load = async () => {
   data.value = (await http.get(`/sales/${route.params.id}`)).data;
   payments.value = (await http.get(`/payments/invoice/${route.params.id}`, { params: getFinancialYearParams() })).data;
+  returns.value = (
+    await http.get("/returns", { params: { billType: "SALE", billId: route.params.id } })
+  ).data || [];
 };
 
 onMounted(load);

@@ -62,6 +62,30 @@
       </table>
     </div>
 
+    <div class="payments" v-if="returns.length">
+      <h3>Purchase Returns</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Return Invoice</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>View</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in returns" :key="r._id">
+            <td>{{ r.returnNo || "-" }}</td>
+            <td>{{ formatDate(r.returnDate) }}</td>
+            <td>Rs {{ r.totalAmount }}</td>
+            <td>
+              <router-link :to="`/purchase-return?billId=${data._id}`">View</router-link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <button @click="openPDF">Download PDF</button>
     <button @click="createPurchaseReturn">Return Items</button>
     <router-link class="btn" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
@@ -80,10 +104,14 @@ const route = useRoute();
 const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
+const returns = ref([]);
 
 const load = async () => {
   data.value = (await http.get(`/purchase/${route.params.id}`)).data;
   payments.value = (await http.get(`/payments/invoice/${route.params.id}`, { params: getFinancialYearParams() })).data;
+  returns.value = (
+    await http.get("/returns", { params: { billType: "PURCHASE", billId: route.params.id } })
+  ).data || [];
 };
 
 onMounted(load);

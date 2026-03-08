@@ -31,6 +31,7 @@
             </svg>
           </span>
           <span v-if="isSidebarOpen" class="nav-label">{{ item.label }}</span>
+          <span v-else class="nav-tooltip">{{ item.label }}</span>
         </router-link>
       </nav>
 
@@ -192,7 +193,8 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: visible;
 }
 
 .nav-item {
@@ -228,6 +230,39 @@ const handleLogout = () => {
 .sidebar.collapsed .nav-item {
   justify-content: center;
   padding: 9px;
+  position: relative;
+}
+
+.nav-tooltip {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item:hover .nav-tooltip {
+  display: block;
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0f172a;
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 1100;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+}
+
+.sidebar.collapsed .nav-item:hover .nav-tooltip::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid #0f172a;
+  z-index: 1100;
 }
 
 .nav-label {
