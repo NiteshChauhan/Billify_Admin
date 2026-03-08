@@ -17,10 +17,14 @@
         <input v-model="form.sku" required />
       </div>
 
-      <!-- GST -->
       <div class="form-group">
-        <label>GST (%)</label>
-        <input type="number" v-model.number="form.gst" />
+        <label>Opening Stock</label>
+        <input type="number" min="0" step="0.01" v-model.number="form.openingStock" />
+      </div>
+
+      <div class="form-group">
+        <label>Opening Rate (Cost)</label>
+        <input type="number" min="0" step="0.01" v-model.number="form.openingRate" />
       </div>
 
       <!-- Attributes -->
@@ -86,7 +90,8 @@ const isEdit = computed(() => !!route.params.id);
 const form = reactive({
   name: "",
   sku: "",
-  gst: 0,
+  openingStock: 0,
+  openingRate: 0,
   attributes: [
     { key: "", value: "" }
   ]
@@ -103,7 +108,8 @@ onMounted(async () => {
 
       form.name = res.data.name;
       form.sku = res.data.sku;
-      form.gst = res.data.gst || 0;
+      form.openingStock = Number(res.data.openingStock || 0);
+      form.openingRate = Number(res.data.openingRate || 0);
 
       /* 🔥 Convert attributes object → array */
       form.attributes = Object.entries(res.data.attributes || {}).map(
@@ -138,7 +144,8 @@ const submit = async () => {
     const payload = {
       name: form.name,
       sku: form.sku,
-      gst: form.gst,
+      openingStock: Number(form.openingStock || 0),
+      openingRate: Number(form.openingRate || 0),
       attributes: attributesObj
     };
 

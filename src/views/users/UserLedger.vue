@@ -9,11 +9,6 @@
     </div>
 
     <div class="toolbar">
-      <label>View As</label>
-      <select v-model="role" @change="load">
-        <option value="supplier">Supplier</option>
-        <option value="customer">Customer</option>
-      </select>
       <button @click="exportPdf">Export PDF</button>
     </div>
 
@@ -21,28 +16,26 @@
       <thead>
         <tr>
           <th>Date</th>
-          <th>Particulars</th>
-          <th>Debit (Rs)</th>
-          <th>Credit (Rs)</th>
-          <th>Balance (Rs)</th>
-          <th>Bill</th>
+          <th>Bill Number</th>
+          <th>Type</th>
+          <th>Debit</th>
+          <th>Credit</th>
+          <th>Balance</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(l, i) in ledger" :key="i">
           <td>{{ formatDate(l.date) }}</td>
-          <td>{{ l.particulars }}</td>
-          <td class="debit">{{ l.debit ? l.debit : "-" }}</td>
-          <td class="credit">{{ l.credit ? l.credit : "-" }}</td>
+          <td>{{ l.billNumber || '-' }}</td>
+          <td>{{ l.type }}</td>
+          <td class="debit">{{ l.debit ? l.debit : '-' }}</td>
+          <td class="credit">{{ l.credit ? l.credit : '-' }}</td>
           <td>{{ l.balance }}</td>
           <td>
             <router-link v-if="l.billType === 'PURCHASE'" :to="`/purchase/${l.billId}`">View</router-link>
-            <router-link v-if="l.billType === 'SALE'" :to="`/sales/${l.billId}`">View</router-link>
-            <template v-if="l.canEditBill">
-              |
-              <router-link v-if="l.billType === 'PURCHASE'" :to="`/purchase/edit/${l.billId}`">Edit</router-link>
-              <router-link v-if="l.billType === 'SALE'" :to="`/sales/edit/${l.billId}`">Edit</router-link>
-            </template>
+            <router-link v-else-if="l.billType === 'SALE'" :to="`/sales/${l.billId}`">View</router-link>
+            <span v-else>-</span>
           </td>
         </tr>
       </tbody>
@@ -66,13 +59,12 @@ const user = ref({ name: "", openingBalance: 0 });
 const ledger = ref([]);
 const closingBalance = ref(0);
 const loaded = ref(false);
-const role = ref("supplier");
 
 const load = async () => {
   const userId = route.params.userId || route.params.id;
   loaded.value = false;
   const res = await http.get(`/users/${userId}/ledger`, {
-    params: { ...getFinancialYearParams(), role: role.value },
+    params: { ...getFinancialYearParams(), role: "all" },
   });
   user.value = res.data.user || res.data.party || {};
   ledger.value = res.data.ledger || [];
@@ -89,13 +81,13 @@ onUnmounted(() => {
   window.removeEventListener("fy-changed", load);
 });
 
-const formatDate = (d) => (d ? new Date(d).toLocaleDateString() : "-");
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
 const exportPdf = () => {
   const userId = route.params.userId || route.params.id;
   const params = new URLSearchParams({
     ...getFinancialYearParams(),
-    role: role.value,
+    role: "all",
     token: localStorage.getItem("token") || "",
   });
   window.open(
@@ -106,38 +98,14 @@ const exportPdf = () => {
 </script>
 
 <style scoped>
-.ledger-card {
-  max-width: 1000px;
-  margin: auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-}
-.header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th,
-td {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
-}
-.debit {
-  color: #dc2626;
-}
-.credit {
-  color: #059669;
-}
+.ledger-card { max-width: 1100px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+.header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar { margin-bottom: 10px; }
+button { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 8px 10px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+.empty { color: #64748b; padding: 12px 0; }
+.loading { text-align: center; margin-top: 60px; }
+.debit { color: #b45309; }
+.credit { color: #166534; }
 </style>
-

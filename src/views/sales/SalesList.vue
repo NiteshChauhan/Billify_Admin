@@ -1,231 +1,128 @@
 <template>
-  <div class="page-wrapper">
-    <div class="card">
-      <!-- Header -->
-      <div class="header">
-        <div>
-          <h2>Sales Invoices</h2>
-          <p class="subtitle">Manage and track all sales invoices</p>
-        </div>
-
-        <router-link to="/sales/create" class="btn-primary">
-          + New Sale
-        </router-link>
+  <div class="card">
+    <div class="head">
+      <div>
+        <h2>Sales List</h2>
+        <p>Track customer sales and outstanding.</p>
       </div>
+      <router-link class="btn" to="/entry?type=sale">Add Bill</router-link>
+    </div>
 
-      <!-- Responsive Table Wrapper -->
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice No</th>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Total</th>
-              <th>Paid</th>
-              <th>Status</th>
-              <th class="actions-col">Actions</th>
-            </tr>
-          </thead>
+    <div class="filters">
+      <label>From Date <input type="date" v-model="fromDate" /></label>
+      <label>To Date <input type="date" v-model="toDate" /></label>
+      <button class="btn-light" @click="load">Apply</button>
+    </div>
 
-          <tbody>
-            <tr v-for="i in invoices" :key="i._id">
-              <td class="bold">{{ i.invoiceNo }}</td>
-              <td>{{ formatDate(i.invoiceDate) }}</td>
-              <td>{{ i.partyId?.name || i.customerId?.name || i.vendorId?.name }}</td>
-              <td>₹ {{ i.totalAmount }}</td>
-              <td>₹ {{ i.paidAmount }}</td>
-              <td>
-                <span :class="`status ${i.status}`">
-                  {{ i.status }}
-                </span>
-              </td>
-              <td class="actions">
-                <router-link :to="`/sales/${i._id}`" class="btn-link">
-                  View
-                </router-link>
-                <router-link :to="`/sales/edit/${i._id}`" class="btn-link edit">
-                  Edit
-                </router-link>
-              </td>
-            </tr>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sr No</th>
+            <th>Date</th>
+            <th>Customer Name</th>
+            <th>Sale Number</th>
+            <th>Total Amount</th>
+            <th>Paid Amount</th>
+            <th>Status</th>
+            <th>How Many Days</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(inv, idx) in rows" :key="inv._id">
+            <td>{{ idx + 1 }}</td>
+            <td>{{ fmt(inv.invoiceDate) }}</td>
+            <td>{{ inv.partyId?.name || inv.customerId?.name || inv.vendorId?.name || '-' }}</td>
+            <td>{{ inv.invoiceNo }}</td>
+            <td>{{ money(inv.totalAmount) }}</td>
+            <td>{{ money(inv.paidAmount) }}</td>
+            <td><span :class="['pill', inv.status]">{{ statusLabel(inv.status) }}</span></td>
+            <td>{{ pendingDays(inv) }}</td>
+            <td class="actions">
+              <router-link :to="`/sales/edit/${inv._id}`">Edit</router-link>
+              <router-link :to="`/sales/${inv._id}`">View</router-link>
+              <button @click="printBill(inv._id)">Print</button>
+            </td>
+          </tr>
+          <tr v-if="!rows.length">
+            <td colspan="9" class="empty">No sales found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-            <tr v-if="!invoices.length">
-              <td colspan="7" class="empty">
-                No invoices found
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="summary">
+      <div>Total Sales Amount: {{ money(totals.totalSales) }}</div>
+      <div>Total Paid Amount: {{ money(totals.totalPaid) }}</div>
+      <div>Outstanding Amount: {{ money(totals.outstanding) }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 
-const invoices = ref([]);
+const rows = ref([]);
+const fromDate = ref("");
+const toDate = ref("");
 
-const load = async () => {
-  const res = await http.get("/sales", {
-    params: getFinancialYearParams(),
-  });
-  invoices.value = res.data;
+const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
+const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
+const statusLabel = (s) => (s === "DUE" ? "Unpaid" : s === "PARTIAL" ? "Partial" : "Paid");
+
+const pendingDays = (inv) => {
+  if (!["DUE", "PARTIAL"].includes(inv.status)) return "-";
+  const diff = Date.now() - new Date(inv.invoiceDate).getTime();
+  return `${Math.max(0, Math.floor(diff / 86400000))} days`;
 };
 
-onMounted(async () => {
-  await load();
-  window.addEventListener("fy-changed", load);
+const load = async () => {
+  const params = { ...getFinancialYearParams() };
+  if (fromDate.value) params.from = fromDate.value;
+  if (toDate.value) params.to = toDate.value;
+  const res = await http.get("/sales", { params });
+  rows.value = res.data || [];
+};
+
+const printBill = (id) => {
+  const token = localStorage.getItem("token") || "";
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${id}?token=${token}`, "_blank");
+};
+
+const totals = computed(() => {
+  const totalSales = rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
+  const totalPaid = rows.value.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0);
+  return {
+    totalSales,
+    totalPaid,
+    outstanding: totalSales - totalPaid,
+  };
 });
 
-onUnmounted(() => {
-  window.removeEventListener("fy-changed", load);
-});
-
-const formatDate = (d) => new Date(d).toLocaleDateString();
+onMounted(load);
 </script>
 
 <style scoped>
-.page-wrapper {
-  padding: 20px;
-  background: #f5f7fb;
-  min-height: 100vh;
-}
-
-/* Card */
-.card {
-  background: #ffffff;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-/* Header */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.subtitle {
-  font-size: 13px;
-  color: #6b7280;
-  margin-top: 4px;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: white;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 14px;
-  text-decoration: none;
-  transition: 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: #1e40af;
-}
-
-/* Table */
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px;
-}
-
-th {
-  text-align: left;
-  padding: 12px 10px;
-  background: #f9fafb;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-}
-
-td {
-  padding: 12px 10px;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 14px;
-  color: #374151;
-}
-
-.bold {
-  font-weight: 600;
-}
-
-/* Status Badges */
-.status {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status.PAID {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status.PARTIAL {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status.DUE {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-/* Actions */
-.actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-link {
-  font-size: 13px;
-  color: #2563eb;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.btn-link:hover {
-  text-decoration: underline;
-}
-
-.btn-link.edit {
-  color: #059669;
-}
-
-/* Empty state */
-.empty {
-  text-align: center;
-  padding: 20px;
-  color: #9ca3af;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .btn-primary {
-    width: 100%;
-    text-align: center;
-  }
-}
+.card { background: #fff; border-radius: 12px; padding: 18px; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.head p { margin: 0; color: #64748b; }
+.btn { background: #0ea5e9; color: #fff; text-decoration: none; border-radius: 8px; padding: 10px 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; align-items: end; }
+.filters label { display: grid; gap: 6px; font-size: 13px; }
+input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+.btn-light { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 9px 12px; }
+.table-wrap { overflow: auto; }
+table { width: 100%; min-width: 980px; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
+.pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+.PAID { background: #dcfce7; color: #166534; }
+.PARTIAL { background: #fef9c3; color: #854d0e; }
+.DUE { background: #fee2e2; color: #991b1b; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
+.empty { text-align: center; color: #64748b; }
+.summary { margin-top: 12px; display: grid; gap: 6px; justify-content: end; text-align: right; }
 </style>

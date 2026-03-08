@@ -95,9 +95,22 @@ const save = async () => {
     return;
   }
 
+  const payloadItems = items.value
+    .filter((i) => i.productId && Number(i.quantity) > 0 && Number(i.rate) > 0)
+    .map((i) => ({
+      productId: i.productId,
+      quantity: Number(i.quantity),
+      rate: Number(i.rate),
+    }));
+
+  if (!payloadItems.length) {
+    alert("Add at least one valid product row");
+    return;
+  }
+
   await http.post("/sales", {
     partyId: vendorId.value,
-    items: items.value,
+    items: payloadItems,
     tax: tax.value,
     paidAmount: paidAmount.value,
   });

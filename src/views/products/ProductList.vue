@@ -1,161 +1,182 @@
-﻿<template>
-  <div>
-    <h2 class="page-title">Products</h2>
-
-    <div class="toolbar">
-      <input v-model="search" placeholder="Search by name or SKU..." />
-      <router-link to="/products/create" class="btn-primary">+ Add Product</router-link>
+<template>
+  <div class="card">
+    <div class="head">
+      <h2>Product List</h2>
+      <button class="btn" @click="openCreate">Add Product</button>
     </div>
 
-    <table class="table">
+    <div class="toolbar">
+      <input v-model="search" placeholder="Search Product" />
+      <select v-model="stockFilter">
+        <option value="all">All</option>
+        <option value="available">Available</option>
+        <option value="not_available">Not Available</option>
+      </select>
+    </div>
+
+    <table>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>SKU</th>
-          <th>Attributes</th>
-          <th>GST</th>
-          <th>Current Stock Qty</th>
+          <th>Sr No</th>
+          <th>Product Name</th>
+          <th>Opening Stock</th>
+          <th>In Stock</th>
+          <th>Total Stock</th>
+          <th>Status</th>
           <th>Action</th>
         </tr>
       </thead>
-
       <tbody>
-        <tr v-if="filteredProducts.length === 0">
-          <td colspan="6" class="empty">No products found</td>
-        </tr>
-
-        <tr v-for="p in filteredProducts" :key="p._id">
+        <tr v-for="(p, idx) in filteredRows" :key="p._id">
+          <td>{{ idx + 1 }}</td>
           <td>{{ p.name }}</td>
-          <td>{{ p.sku }}</td>
-          <td>
-            <div v-if="p.attributes && Object.keys(p.attributes).length" class="attrs">
-              <div v-for="(val, key) in p.attributes" :key="key">
-                <strong>{{ key }}:</strong> {{ val }}
-              </div>
-            </div>
-            <span v-else>-</span>
-          </td>
-          <td>{{ p.gst ?? 0 }}%</td>
-          <td>{{ stockMap[p._id] ?? "-" }}</td>
+          <td>{{ p.openingStock }}</td>
+          <td>{{ p.inStock }}</td>
+          <td>{{ p.totalStock }}</td>
+          <td>{{ p.inStock > 0 ? 'Available' : 'Not Available' }}</td>
           <td class="actions">
-            <router-link :to="`/products/edit/${p._id}`" class="link">Edit</router-link>
-            <router-link :to="`/opening-stock/${p._id}`" class="link secondary">Opening Stock</router-link>
+            <router-link :to="`/products/${p._id}/history`">View</router-link>
+            <button @click="openEdit(p)">Edit</button>
           </td>
         </tr>
+        <tr v-if="!filteredRows.length"><td colspan="7" class="empty">No products found</td></tr>
       </tbody>
     </table>
+
+    <div v-if="showModal" class="modal-wrap">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>{{ editId ? 'Edit Product' : 'Add Product' }}</h3>
+          <button class="modal-close" @click="closeModal" aria-label="Close">X</button>
+        </div>
+        <label>Product Name <input v-model="form.name" /></label>
+        <label>SKU <input v-model="form.sku" /></label>
+        <label>Opening Stock <input type="number" min="0" step="0.01" v-model.number="form.openingStock" /></label>
+        <label>Opening Rate (Cost) <input type="number" min="0" step="0.01" v-model.number="form.openingRate" /></label>
+        <div class="modal-actions">
+          <button class="btn btn-primary" @click="save">Save</button>
+          <button class="btn-light btn-secondary" @click="closeModal">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import { getProductsApi } from "@/api/productApi";
+import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
 
-const products = ref([]);
-const stockMap = ref({});
+const rows = ref([]);
 const search = ref("");
+const stockFilter = ref("all");
 
-onMounted(async () => {
-  try {
-    const res = await getProductsApi();
-    products.value = res.data;
+const showModal = ref(false);
+const editId = ref("");
+const form = reactive({ name: "", sku: "", openingStock: 0, openingRate: 0 });
 
-    const entries = await Promise.all(
-      products.value.map(async (product) => {
-        const stock = await http.get(`/stock/${product._id}`);
-        return [product._id, stock.data.stock ?? 0];
-      }),
-    );
-    stockMap.value = Object.fromEntries(entries);
-  } catch (err) {
-    console.error("Failed to load products", err);
-  }
-});
-
-const filteredProducts = computed(() => {
-  if (!search.value) return products.value;
-  const q = search.value.toLowerCase();
-  return products.value.filter(
-    (p) =>
-      (p.name || "").toLowerCase().includes(q) ||
-      (p.sku || "").toLowerCase().includes(q),
+const load = async () => {
+  const products = (await http.get("/products")).data || [];
+  const enriched = await Promise.all(
+    products.map(async (p) => {
+      const history = (await http.get(`/products/${p._id}/history`)).data;
+      const summary = history.summary || {};
+      return {
+        ...p,
+        openingStock: summary.openingStock || 0,
+        inStock: summary.totalInStock || 0,
+        totalStock: (summary.openingStock || 0) + (summary.totalPurchase || 0),
+      };
+    }),
   );
+  rows.value = enriched;
+};
+
+onMounted(load);
+
+const filteredRows = computed(() => {
+  const q = search.value.toLowerCase();
+  return rows.value
+    .filter((p) => (p.name || "").toLowerCase().includes(q))
+    .filter((p) => {
+      if (stockFilter.value === "available") return p.inStock > 0;
+      if (stockFilter.value === "not_available") return p.inStock <= 0;
+      return true;
+    });
 });
+
+const openCreate = () => {
+  editId.value = "";
+  form.name = "";
+  form.sku = "";
+  form.openingStock = 0;
+  form.openingRate = 0;
+  showModal.value = true;
+};
+
+const openEdit = (product) => {
+  editId.value = product._id;
+  form.name = product.name || "";
+  form.sku = product.sku || "";
+  form.openingStock = Number(product.openingStock || 0);
+  form.openingRate = Number(product.openingRate || 0);
+  showModal.value = true;
+};
+
+const closeModal = () => {
+  showModal.value = false;
+};
+
+const save = async () => {
+  if (!form.name || !form.sku) {
+    alert("Name and SKU are required");
+    return;
+  }
+
+  if (editId.value) {
+    await http.put(`/products/${editId.value}`, {
+      name: form.name,
+      sku: form.sku,
+      openingStock: Number(form.openingStock || 0),
+      openingRate: Number(form.openingRate || 0),
+    });
+  } else {
+    await http.post("/products", {
+      name: form.name,
+      sku: form.sku,
+      openingStock: Number(form.openingStock || 0),
+      openingRate: Number(form.openingRate || 0),
+    });
+  }
+
+  closeModal();
+  await load();
+};
 </script>
 
 <style scoped>
-.page-title {
-  font-size: 22px;
-  margin-bottom: 15px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  gap: 10px;
-}
-
-input {
-  padding: 8px;
-  width: 260px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-  vertical-align: top;
-}
-
-.attrs div {
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-}
-
-.link {
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.secondary {
-  color: #059669;
-}
-
-.empty {
-  text-align: center;
-  padding: 20px;
-  color: #777;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 5px;
-  text-decoration: none;
-}
-
-@media (max-width: 600px) {
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  input {
-    width: 100%;
-  }
+.card { background: #fff; border-radius: 12px; padding: 18px; }
+.head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
+input, select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
+.empty { text-align: center; color: #64748b; }
+.btn { background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.btn-light { border: 1px solid #cbd5e1; background: #fff; color: #0f172a; border-radius: 8px; padding: 8px 12px; }
+.modal-wrap { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.45); display: grid; place-items: center; }
+.modal { width: min(420px, 92vw); background: #fff; border-radius: 12px; padding: 16px; display: grid; gap: 10px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; }
+.modal label { display: grid; gap: 6px; }
+.modal-actions { display: flex; justify-content: end; gap: 8px; }
+.modal-close {
+  border: 1px solid #ef4444;
+  background: #fff1f2;
+  color: #b91c1c;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-weight: 700;
 }
 </style>

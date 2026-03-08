@@ -74,11 +74,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 
 const route = useRoute();
+const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
 
@@ -98,17 +99,7 @@ const openPDF = () => {
 };
 
 const createSaleReturn = async () => {
-  const first = data.value.items?.[0];
-  if (!first) return;
-  const qty = Number(prompt("Return quantity for first item", "1"));
-  if (!qty || qty <= 0) return;
-
-  await http.post("/returns/sale", {
-    billId: data.value._id,
-    items: [{ productId: first.productId?._id || first.productId, quantity: qty, rate: first.rate }],
-  });
-
-  await load();
+  router.push(`/entry?type=sale_return&billId=${data.value._id}`);
 };
 </script>
 

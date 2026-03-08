@@ -5,6 +5,11 @@
     <!-- HEADER -->
     <div class="header-grid">
       <div>
+        <label>Bill Number</label>
+        <input v-model.trim="form.invoiceNo" placeholder="Enter purchase bill number" />
+      </div>
+
+      <div>
         <label>Supplier</label>
         <UserSelect
           v-model="form.supplierId"
@@ -106,6 +111,7 @@ const users = ref([]);
 const products = ref([]);
 
 const form = reactive({
+  invoiceNo: "",
   supplierId: "",
   invoiceDate: "",
   items: [createItem()],
@@ -157,13 +163,35 @@ const subtotal = computed(() =>
 const total = computed(() => subtotal.value + form.tax);
 
 const save = async () => {
+  if (!form.invoiceNo?.trim()) {
+    alert("Purchase bill number is required");
+    return;
+  }
+
   if (!form.supplierId) {
     alert("Supplier is required");
     return;
   }
 
+  const payloadItems = form.items
+    .filter((i) => i.productId && Number(i.quantity) > 0 && Number(i.rate) > 0)
+    .map((i) => ({
+      productId: i.productId,
+      quantity: Number(i.quantity),
+      rate: Number(i.rate),
+    }));
+
+  if (!payloadItems.length) {
+    alert("Add at least one valid product row");
+    return;
+  }
+
   await createPurchaseApi({
-    ...form,
+    invoiceNo: form.invoiceNo.trim(),
+    invoiceDate: form.invoiceDate,
+    items: payloadItems,
+    tax: Number(form.tax || 0),
+    paidAmount: Number(form.paidAmount || 0),
     partyId: form.supplierId,
   });
   router.push("/purchase");

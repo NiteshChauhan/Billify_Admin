@@ -1,87 +1,139 @@
 <template>
-  <div class="app">
-    <!-- TOP BAR (MOBILE ONLY) -->
-    <header class="topbar">
-      <button class="menu-btn" @click="toggleSidebar">☰</button>
-      <span class="title">Billing ERP</span>
-    </header>
+  <div class="admin-shell" :style="{ '--app-sidebar-width': sidebarWidth }">
+    <aside
+      :class="['sidebar', { collapsed: !isSidebarOpen, open: mobileOpen }]"
+    >
+      <div class="brand-row">
+        <h2 v-if="isSidebarOpen">Billing Admin</h2>
+        <!-- <button class="icon-btn" @click="toggleSidebar">{{ isSidebarOpen ? '<' : '>' }}</button>-->
+      </div>
 
-    <!-- BACKDROP -->
-    <div v-if="isSidebarOpen" class="backdrop" @click="toggleSidebar"></div>
+      <FinancialYearSelect v-if="isSidebarOpen" />
 
-    <!-- SIDEBAR -->
-    <aside :class="['sidebar', { open: isSidebarOpen }]">
-      <h3 class="logo">Billing ERP</h3>
-      <FinancialYearSelect />
-
-      <nav @click="closeSidebar">
-        <router-link to="/" class="nav-item" exact-active-class="active">
-          Dashboard
+      <nav class="nav" @click="closeMobile">
+        <router-link
+          v-for="item in navItems"
+          :key="item.path"
+          :to="item.path"
+          class="nav-item"
+          exact-active-class="active"
+        >
+          <span class="nav-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path :d="item.icon" />
+            </svg>
+          </span>
+          <span v-if="isSidebarOpen" class="nav-label">{{ item.label }}</span>
         </router-link>
-
-        <router-link to="/products" class="nav-item">Products</router-link>
-        <router-link to="/users" class="nav-item">Users</router-link>
-
-        <div class="menu">
-          <div class="menu-title">Purchase</div>
-          <router-link to="/purchase/create" class="nav-sub">
-            + New Purchase
-          </router-link>
-          <router-link to="/purchase" class="nav-sub">
-            Purchase List
-          </router-link>
-        </div>
-
-        <div class="menu">
-          <div class="menu-title">Sales</div>
-          <router-link to="/sales/create" class="nav-sub">
-            + New Sale
-          </router-link>
-          <router-link to="/sales" class="nav-sub"> Sales Invoice </router-link>
-        </div>
-
-        <div class="menu">
-          <div class="menu-title">Reports</div>
-          <router-link to="/reports/outstanding" class="nav-sub">
-            Outstanding
-          </router-link>
-          <router-link to="/reports/ageing" class="nav-sub">
-            Ageing Report
-          </router-link>
-          <router-link to="/reports/profit" class="nav-item">
-            Profit & Loss
-          </router-link>
-        </div>
       </nav>
 
-      <button class="logout" @click="handleLogout">Logout</button>
+      <button class="logout" @click="handleLogout">
+        <span class="nav-icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+        </span>
+        <span v-if="isSidebarOpen">Logout</span>
+      </button>
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="content">
-      <router-view />
-    </main>
+    <div class="main-wrap">
+      <header class="topbar">
+        <button class="icon-btn" @click="toggleSidebar">&#9776;</button>
+        <h3>Billing</h3>
+      </header>
+      <main class="content"><router-view /></main>
+    </div>
+
+    <div v-if="mobileOpen" class="backdrop" @click="mobileOpen = false" />
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import FinancialYearSelect from "@/components/FinancialYearSelect.vue";
 
-const auth = useAuthStore();
 const router = useRouter();
+const auth = useAuthStore();
 
-const isSidebarOpen = ref(false);
+const isSidebarOpen = ref(true);
+const mobileOpen = ref(false);
+
+const navItems = [
+  { label: "Dashboard", path: "/", icon: "M3 12l9-9 9 9M5 10v10h14V10" },
+  { label: "Sales", path: "/sales", icon: "M4 7h16M4 12h10M4 17h8" },
+  {
+    label: "Purchase",
+    path: "/purchase",
+    icon: "M3 6h18l-2 12H5L3 6zM8 6V4h8v2",
+  },
+  { label: "Sale Return", path: "/sale-return", icon: "M20 7H8M12 3l-4 4 4 4" },
+  {
+    label: "Purchase Return",
+    path: "/purchase-return",
+    icon: "M4 17h12M12 21l4-4-4-4",
+  },
+  {
+    label: "Products",
+    path: "/products",
+    icon: "M12 3l9 4.5-9 4.5-9-4.5L12 3zM3 7.5V16.5L12 21l9-4.5V7.5",
+  },
+  { label: "Entry", path: "/entry", icon: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" },
+  { label: "Stock", path: "/stock", icon: "M3 7h18M5 7v12h14V7" },
+  {
+    label: "Users",
+    path: "/users",
+    icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  },
+  { label: "Ledger", path: "/users", icon: "M4 6h16M4 12h16M4 18h10" },
+  {
+    label: "Balance Sheet",
+    path: "/reports/outstanding",
+    icon: "M4 20h16M7 16V8M12 16V4M17 16v-6",
+  },
+  {
+    label: "Profit & Loss",
+    path: "/reports/profit",
+    icon: "M4 16l4-4 3 3 6-6",
+  },
+  {
+    label: "Outstanding",
+    path: "/reports/outstanding",
+    icon: "M6 6h12v12H6zM9 9h6v6H9",
+  },
+];
+
+const sidebarWidth = computed(() => (isSidebarOpen.value ? "280px" : "88px"));
 
 const toggleSidebar = () => {
+  if (window.innerWidth <= 960) {
+    mobileOpen.value = !mobileOpen.value;
+    return;
+  }
   isSidebarOpen.value = !isSidebarOpen.value;
 };
 
-const closeSidebar = () => {
-  if (window.innerWidth <= 768) {
-    isSidebarOpen.value = false;
+const closeMobile = () => {
+  if (window.innerWidth <= 960) {
+    mobileOpen.value = false;
   }
 };
 
@@ -92,139 +144,152 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-/* ===== DESKTOP LAYOUT ===== */
-.app {
+.admin-shell {
   display: flex;
   min-height: 100vh;
-  background: #f4f6fa;
+  background: #f3f6fb;
 }
 
-/* TOP BAR */
+.sidebar {
+  width: 280px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: width 0.2s ease;
+  z-index: 1000;
+}
+
+.sidebar.collapsed {
+  width: 88px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.brand-row h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.icon-btn {
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+}
+
+.nav-item {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: #1e293b;
+  color: #fff;
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+}
+
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px;
+}
+
+.nav-label {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.logout {
+  margin-top: auto;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.main-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
 .topbar {
-  display: none; /* hidden on desktop */
+  display: flex;
   align-items: center;
   gap: 12px;
-  background: #1e3a8a;
-  color: white;
-  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 14px;
 }
 
-.menu-btn {
-  font-size: 22px;
-  width: 10%;
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
+.topbar h3 {
+  margin: 0;
 }
 
-.title {
-  font-weight: 600;
-}
-
-/* SIDEBAR */
-.sidebar {
-  width: 240px;
-  background: #1e3a8a;
-  color: white;
-  padding: 20px;
-  flex-shrink: 0;
-}
-
-.logo {
-  margin-bottom: 20px;
-}
-
-/* NAV */
-.nav-item,
-.nav-sub {
-  display: block;
-  padding: 10px;
-  border-radius: 6px;
-  color: white;
-  text-decoration: none;
-  margin-bottom: 6px;
-}
-
-.nav-sub {
-  font-size: 14px;
-  margin-left: 10px;
-}
-
-.active {
-  background: #2563eb;
-}
-
-.menu {
-  margin-top: 15px;
-}
-
-.menu-title {
-  font-size: 12px;
-  opacity: 0.7;
-  margin-bottom: 6px;
-}
-
-/* LOGOUT */
-.logout {
-  margin-top: 20px;
-  width: 100%;
-  padding: 10px;
-  background: #dc2626;
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-/* CONTENT */
 .content {
-  flex: 1;
   padding: 20px;
 }
 
-/* BACKDROP */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 998;
+  background: rgba(2, 6, 23, 0.45);
+  z-index: 999;
 }
 
-/* ===== MOBILE LAYOUT ===== */
-@media (max-width: 768px) {
-  .app {
-    display: block;
-  }
-
-  /* ✅ SHOW TOPBAR */
-  .topbar {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1001;
-  }
-
-  /* SIDEBAR AS DRAWER */
+@media (max-width: 960px) {
   .sidebar {
     position: fixed;
+    left: -320px;
     top: 0;
-    left: 0;
-    height: 100%;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    z-index: 1000;
+    bottom: 0;
+    width: 280px;
+    transition: left 0.25s ease;
   }
 
   .sidebar.open {
-    transform: translateX(0);
-  }
-
-  /* PUSH CONTENT BELOW TOPBAR */
-  .content {
-    padding-top: 60px;
+    left: 0;
   }
 }
 </style>

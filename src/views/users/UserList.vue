@@ -10,28 +10,25 @@
     <table>
       <thead>
         <tr>
+          <th>Sr No</th>
           <th>Name</th>
           <th>Phone</th>
-          <th>GST</th>
-          <th>Roles</th>
+          <th>Type</th>
           <th>Balance</th>
           <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr v-for="u in users" :key="u._id">
+        <tr v-for="(u, idx) in users" :key="u._id">
+          <td>{{ idx + 1 }}</td>
           <td>{{ u.name }}</td>
           <td>{{ u.phone }}</td>
-          <td>{{ u.gstNumber }}</td>
-          <td>{{ formatRoles(u) }}</td>
+          <td>{{ formatType(u) }}</td>
           <td>Rs {{ u.balance ?? u.openingBalance ?? 0 }}</td>
-          <td>
+          <td class="actions">
+            <router-link :to="`/users/${u._id}/ledger`">View</router-link>
             <router-link :to="`/users/edit/${u._id}`">Edit</router-link>
-            |
-            <router-link :to="`/users/${u._id}/ledger`">View Ledger</router-link>
-            |
-            <a href="#" @click.prevent="remove(u._id)">Delete</a>
           </td>
         </tr>
       </tbody>
@@ -41,7 +38,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { deleteUserApi, getUsersApi } from "@/api/userApi";
+import { getUsersApi } from "@/api/userApi";
 import { getUserRoles } from "@/utils/userRole";
 
 const users = ref([]);
@@ -52,15 +49,14 @@ const load = async () => {
 
 onMounted(load);
 
-const formatRoles = (user) => {
+const formatType = (user) => {
   const roles = getUserRoles(user);
-  return roles.length ? roles.join(", ") : "-";
-};
-
-const remove = async (id) => {
-  if (!confirm("Deactivate this user?")) return;
-  await deleteUserApi(id);
-  await load();
+  const hasSupplier = roles.includes("supplier");
+  const hasCustomer = roles.includes("customer") || roles.includes("vendor");
+  if (hasSupplier && hasCustomer) return "Both";
+  if (hasSupplier) return "Supplier";
+  if (hasCustomer) return "Customer";
+  return "-";
 };
 </script>
 
@@ -91,5 +87,11 @@ td {
   padding: 8px 12px;
   border-radius: 6px;
 }
+.actions {
+  display: flex;
+  gap: 10px;
+}
+.actions a {
+  color: #1d4ed8;
+}
 </style>
-

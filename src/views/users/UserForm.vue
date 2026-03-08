@@ -1,18 +1,15 @@
 <template>
   <div class="form-card">
-    <h2>{{ isEdit ? "Edit User" : "New User" }}</h2>
+    <h2>{{ isEdit ? "Edit User" : "Add User" }}</h2>
 
     <div class="grid">
-      <input v-model="form.name" placeholder="User Name *" />
+      <input v-model="form.name" placeholder="Name *" />
       <input v-model="form.phone" placeholder="Phone" />
       <input v-model="form.email" placeholder="Email" />
       <input v-model="form.gstNumber" placeholder="GST Number" />
     </div>
 
-    <textarea
-      v-model="form.address"
-      placeholder="Address"
-    ></textarea>
+    <textarea v-model="form.address" placeholder="Address"></textarea>
 
     <div class="roles">
       <label>
@@ -25,17 +22,15 @@
       </label>
     </div>
 
-    <div class="grid">
-      <input
-        type="number"
-        v-model.number="form.openingBalance"
-        placeholder="Opening Balance"
-      />
+    <div class="grid single-row">
+      <input type="number" v-model.number="form.openingBalance" placeholder="Opening Balance" />
+      <select v-model="form.isActive">
+        <option :value="true">Active</option>
+        <option :value="false">Inactive</option>
+      </select>
     </div>
 
-    <button class="btn" @click="save">
-      Save User
-    </button>
+    <button class="btn" @click="save">Save User</button>
   </div>
 </template>
 
@@ -63,6 +58,7 @@ const form = reactive({
   gstNumber: "",
   openingBalance: 0,
   roles: [],
+  isActive: true,
 });
 
 const mapUserToForm = (user) => {
@@ -72,8 +68,9 @@ const mapUserToForm = (user) => {
   form.email = user.email || "";
   form.address = user.address || "";
   form.gstNumber = user.gstNumber || "";
-  form.openingBalance = user.openingBalance ?? user.balance ?? 0;
-  form.roles = getUserRoles(user);
+  form.openingBalance = Number(user.openingBalance ?? user.balance ?? 0);
+  form.roles = getUserRoles(user).filter((r) => ["supplier", "customer", "vendor"].includes(r)).map((r) => (r === "vendor" ? "customer" : r));
+  form.isActive = user.isActive !== false;
 };
 
 onMounted(async () => {
@@ -90,17 +87,16 @@ onMounted(async () => {
 });
 
 const buildPayload = () => {
-  const roles = [...new Set(form.roles)];
+  const roles = [...new Set(form.roles)].map((r) => (r === "vendor" ? "customer" : r));
   return {
     name: form.name.trim(),
     phone: form.phone,
     email: form.email,
     address: form.address,
     gstNumber: form.gstNumber,
-    openingBalance: Number(form.openingBalance || 0),
     roles,
-    role: roles.length === 1 ? roles[0] : roles,
-    type: roles.length === 1 ? roles[0] : roles,
+    openingBalance: Number(form.openingBalance || 0),
+    isActive: Boolean(form.isActive),
   };
 };
 
@@ -129,7 +125,7 @@ const save = async () => {
 
 <style scoped>
 .form-card {
-  max-width: 600px;
+  max-width: 640px;
   margin: auto;
   background: white;
   padding: 20px;
@@ -141,8 +137,11 @@ const save = async () => {
   gap: 15px;
 }
 input,
-textarea {
+textarea,
+select {
   padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
 }
 textarea {
   margin-top: 10px;
@@ -157,6 +156,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.single-row {
+  margin-top: 12px;
 }
 .btn {
   margin-top: 20px;
