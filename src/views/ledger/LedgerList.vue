@@ -101,7 +101,7 @@ const partyRows = computed(() => {
         roles,
         totalSales: 0,
         totalPurchase: 0,
-        paid: 0,
+        paidReceived: 0,
         totalBills: 0,
       });
     }
@@ -130,13 +130,16 @@ const partyRows = computed(() => {
 
   payments.value.forEach((p) => {
     const row = ensure(String(p.partyId?._id || p.partyId));
-    if (row) row.paid += Number(p.amount || 0);
+    if (!row) return;
+    const isReceived = p.paymentType === "RECEIVED" || p.invoiceType === "SALE";
+    if (isReceived) row.paidReceived += Number(p.amount || 0);
   });
 
   return Array.from(map.values()).map((row) => {
     const totalBillAmount = row.totalSales + row.totalPurchase;
-    const outstanding = totalBillAmount - row.paid;
-    return { ...row, totalBillAmount, outstanding };
+    // Outstanding per requested rule: sales - purchase - paymentsReceived
+    const outstanding = row.totalSales - row.totalPurchase - row.paidReceived;
+    return { ...row, totalBillAmount, outstanding, paid: row.paidReceived };
   });
 });
 

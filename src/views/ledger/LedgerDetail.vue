@@ -23,8 +23,8 @@
             <th>Date</th>
             <th>Type</th>
             <th>Bill No</th>
-            <th class="num">Cr.</th>
             <th class="num">Dr.</th>
+            <th class="num">Cr.</th>
             <th class="num">Remaining</th>
             <th>Action</th>
           </tr>
@@ -36,9 +36,9 @@
           <tr v-for="row in ledger" :key="row._id + row.date + row.particulars">
             <td>{{ formatDate(row.date) }}</td>
             <td>{{ formatType(row.type) }}</td>
-            <td>{{ billNo(row.particulars) }}</td>
-            <td class="num">{{ money(row.credit) }}</td>
+            <td>{{ row.bill_no || billNo(row.particulars) }}</td>
             <td class="num">{{ money(row.debit) }}</td>
+            <td class="num">{{ money(row.credit) }}</td>
             <td class="num">{{ money(row.balance) }}</td>
             <td class="actions">
               <router-link v-if="row.billId && row.billType === 'SALE'" :to="`/sales/${row.billId}`">View</router-link>
@@ -85,7 +85,7 @@ const billNo = (particulars = "") => {
 
 const load = async () => {
   loaded.value = false;
-  const params = { ...getFinancialYearParams(), role: "customer" };
+  const params = { ...getFinancialYearParams() };
   if (from.value && to.value) {
     params.from = from.value;
     params.to = to.value;
@@ -101,10 +101,12 @@ onMounted(load);
 const totals = computed(() =>
   ledger.value.reduce(
     (t, row) => {
-      t.totalPaid += Number(row.credit || 0);
-      t.totalReceived += Number(row.credit || 0);
-      if (row.type === "SALE") t.totalSales += Number(row.credit || 0);
-      if (row.type === "PURCHASE") t.totalPurchase += Number(row.debit || 0);
+      if (row.type === "PAYMENT") {
+        t.totalPaid += Number(row.debit || 0);
+        t.totalReceived += Number(row.credit || 0);
+      }
+      if (row.type === "SALE") t.totalSales += Number(row.debit || 0);
+      if (row.type === "PURCHASE") t.totalPurchase += Number(row.credit || 0);
       return t;
     },
     { totalPaid: 0, totalReceived: 0, totalSales: 0, totalPurchase: 0 },
@@ -112,7 +114,7 @@ const totals = computed(() =>
 );
 
 const printLedger = () => {
-  const params = new URLSearchParams({ ...getFinancialYearParams(), role: "customer", token: localStorage.getItem("token") || "" });
+  const params = new URLSearchParams({ ...getFinancialYearParams(), token: localStorage.getItem("token") || "" });
   window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
 };
 

@@ -16,7 +16,7 @@
       <thead>
         <tr>
           <th>Date</th>
-          <th>Bill Number</th>
+          <th>Bill No</th>
           <th>Type</th>
           <th>Debit</th>
           <th>Credit</th>
@@ -27,7 +27,7 @@
       <tbody>
         <tr v-for="(l, i) in ledger" :key="i">
           <td>{{ formatDate(l.date) }}</td>
-          <td>{{ l.billNumber || '-' }}</td>
+          <td>{{ l.bill_no || l.billNumber || '-' }}</td>
           <td>{{ l.type }}</td>
           <td class="debit">{{ l.debit ? l.debit : '-' }}</td>
           <td class="credit">{{ l.credit ? l.credit : '-' }}</td>
