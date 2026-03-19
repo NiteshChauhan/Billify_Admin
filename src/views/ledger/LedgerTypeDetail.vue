@@ -1,19 +1,11 @@
-﻿<template>
+<template>
   <div class="ledger-detail" v-if="loaded">
     <div class="header">
       <div class="left">
         <router-link class="btn icon" to="/ledger">←</router-link>
-        <div class="party">{{ party.name }}</div>
+        <div class="party">{{ title }}</div>
       </div>
       <div class="center">
-        <select v-model="type" class="type" @change="load">
-          <option value="all">All</option>
-          <option value="customer">Customer</option>
-          <option value="supplier">Supplier</option>
-          <option value="cash">Cash</option>
-          <option value="bank">Bank</option>
-          <option value="credit">Credit</option>
-        </select>
         <input type="date" v-model="from" />
         <span>to</span>
         <input type="date" v-model="to" />
@@ -29,6 +21,7 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Party Name</th>
             <th>Type</th>
             <th>Bill No</th>
             <th class="num">Dr.</th>
@@ -39,21 +32,19 @@
         </thead>
         <tbody>
           <tr v-if="ledger.length === 0">
-            <td colspan="7" class="empty">No transactions</td>
+            <td colspan="8" class="empty">No transactions</td>
           </tr>
-          <tr v-for="row in ledger" :key="row._id + row.date + row.particulars">
+          <tr v-for="row in ledger" :key="`${row.date}-${row.type}-${row.bill_no}-${row.debit}-${row.credit}-${row.billId || ''}`">
             <td>{{ formatDate(row.date) }}</td>
+            <td>{{ row.partyName || "-" }}</td>
             <td>{{ formatType(row.type) }}</td>
-            <td>{{ row.bill_no || billNo(row.particulars) }}</td>
+            <td>{{ row.bill_no || "-" }}</td>
             <td class="num">{{ money(row.debit) }}</td>
             <td class="num">{{ money(row.credit) }}</td>
             <td class="num">{{ money(row.balance) }}</td>
-            <td class="actions">
-              <router-link v-if="row.billId && row.billType === 'SALE'" :to="`/sales/${row.billId}`">View</router-link>
-              <router-link v-else-if="row.billId && row.billType === 'PURCHASE'" :to="`/purchase/${row.billId}`">View</router-link>
-              <router-link v-if="row.canEditBill && row.billId && row.billType === 'SALE'" :to="`/sales/edit/${row.billId}`">Edit</router-link>
-              <router-link v-if="row.canEditBill && row.billId && row.billType === 'PURCHASE'" :to="`/purchase/edit/${row.billId}`">Edit</router-link>
-              <a v-if="row.billId && row.billType" @click.prevent="printBill(row)">Print</a>
+            <td>
+              <router-link v-if="viewLink(row)" class="btn ghost" :to="viewLink(row)">View</router-link>
+              <span v-else>-</span>
             </td>
           </tr>
         </tbody>
@@ -61,88 +52,67 @@
     </div>
 
     <div class="summary">
-      <div>Total Bill Paid: <strong>{{ money(totals.totalPaid) }}</strong></div>
-      <div>Total Amount Received: <strong>{{ money(totals.totalReceived) }}</strong></div>
-      <div>Total Sales: <strong>{{ money(totals.totalSales) }}</strong></div>
-      <div>Total Purchase: <strong>{{ money(totals.totalPurchase) }}</strong></div>
+      <div>Closing Balance: <strong>{{ money(closingBalance) }}</strong></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 
 const route = useRoute();
+const type = computed(() => String(route.params.type || "all").toLowerCase());
+
 const ledger = ref([]);
-const party = ref({});
+const closingBalance = ref(0);
 const loaded = ref(false);
 const from = ref("");
 const to = ref("");
-const type = ref("all");
+
+const title = computed(() => {
+  if (type.value === "cash") return "Cash Ledger";
+  if (type.value === "bank") return "Bank Ledger";
+  if (type.value === "credit") return "Credit Ledger";
+  return "Ledger";
+});
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN") : "-");
 const formatType = (t) =>
   ({ SALE: "Sales", PURCHASE: "Purchase", SALE_RETURN: "Sale Return", PURCHASE_RETURN: "Purchase Return", PAYMENT: "Payment" }[t] || t);
-const billNo = (particulars = "") => {
-  const match = particulars.match(/Invoice\s+([^\s]+)/i);
-  return match ? match[1] : "-";
+
+const viewLink = (row) => {
+  const billType = String(row.billType || "").toUpperCase();
+  const billId = row.billId;
+  if (!billId) return "";
+  // For PAYMENT entries, we open the related invoice view since a dedicated payment-details page doesn't exist.
+  if (billType === "SALE") return `/sales/${billId}`;
+  if (billType === "PURCHASE") return `/purchase/${billId}`;
+  return "";
 };
 
 const load = async () => {
   loaded.value = false;
-  const params = { ...getFinancialYearParams() };
+  const params = { ...getFinancialYearParams(), type: type.value };
   if (from.value && to.value) {
     params.from = from.value;
     params.to = to.value;
   }
-  if (type.value) params.type = type.value;
-  const res = await http.get(`/users/${route.params.userId}/ledger`, { params });
-  party.value = res.data.user || res.data.party || {};
+
+  const res = await http.get("/reports/ledger-transactions", { params });
   ledger.value = res.data.ledger || [];
+  closingBalance.value = res.data.closingBalance || 0;
   loaded.value = true;
 };
 
 onMounted(load);
 
-const totals = computed(() =>
-  ledger.value.reduce(
-    (t, row) => {
-      if (row.type === "PAYMENT") {
-        t.totalPaid += Number(row.debit || 0);
-        t.totalReceived += Number(row.credit || 0);
-      }
-      if (row.type === "SALE") t.totalSales += Number(row.debit || 0);
-      if (row.type === "PURCHASE") t.totalPurchase += Number(row.credit || 0);
-      return t;
-    },
-    { totalPaid: 0, totalReceived: 0, totalSales: 0, totalPurchase: 0 },
-  ),
-);
-
 const printLedger = () => {
-  const baseParams = { ...getFinancialYearParams() };
-  if (from.value && to.value) {
-    baseParams.from = from.value;
-    baseParams.to = to.value;
-  }
-  if (type.value) baseParams.type = type.value;
-  const params = new URLSearchParams({ ...baseParams, token: localStorage.getItem("token") || "" });
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
-};
-
-const printBill = (row) => {
-  if (!row.billId || !row.billType) return;
-  const token = localStorage.getItem("token") || "";
-  const base = import.meta.env.VITE_API_BASE_URL;
-  if (row.billType === "SALE") {
-    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}`, "_blank");
-  } else if (row.billType === "PURCHASE") {
-    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}`, "_blank");
-  }
+  // Reuse existing browser print; PDF export isn't implemented for cash/bank ledgers.
+  window.print();
 };
 </script>
 
@@ -151,8 +121,7 @@ const printBill = (row) => {
 .header { display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; align-items: center; gap: 12px; margin-bottom: 16px; }
 .left { display: flex; align-items: center; gap: 10px; }
 .party { font-weight: 700; font-size: 16px; color: #0f172a; }
-.center { display: flex; align-items: center; gap: 8px; justify-content: flex-start; flex-wrap: wrap; max-width: 480px; }
-.center .type { padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; width: 140px; background: #fff; }
+.center { display: flex; align-items: center; gap: 8px; justify-content: flex-start; flex-wrap: wrap; max-width: 520px; }
 .center input { padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; width: 150px; }
 .center span { color: #6b7280; font-size: 13px; }
 .right { display: flex; justify-content: flex-end; }
@@ -163,12 +132,11 @@ th { background: #f9fafb; font-weight: 600; }
 tbody tr:hover { background: #f8fafc; }
 .num { text-align: right; }
 .empty { text-align: center; padding: 14px; color: #6b7280; }
-.actions a, .actions .router-link-active, .actions .router-link { margin-right: 10px; color: #2563eb; text-decoration: none; }
 .btn { padding: 9px 12px; border-radius: 8px; text-decoration: none; border: 1px solid #2563eb; color: #2563eb; background: transparent; cursor: pointer; font-weight: 600; }
 .btn.icon { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .ghost { border-color: #2563eb; color: #2563eb; }
-.summary { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.summary { margin-top: 14px; display: flex; justify-content: flex-end; }
 .summary div { background: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
 @media (max-width: 1024px) {
   .header { grid-template-columns: 1fr; row-gap: 10px; }

@@ -27,6 +27,14 @@
     </div>
 
     <div class="tools" v-if="isSaleOrPurchase">
+      <label class="field-inline compact">
+        <span>Payment Type</span>
+        <select v-model="paymentType">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="credit">Credit</option>
+        </select>
+      </label>
       <button class="btn btn-primary" @click="leftOpen = true">Select Party</button>
       <button class="btn btn-secondary" @click="rightOpen = true">Select Product</button>
       <div class="selected">Party: {{ selectedParty?.name || 'Not selected' }}</div>
@@ -139,6 +147,7 @@ const rows = ref([]);
 const products = ref([]);
 const parties = ref([]);
 const selectedParty = ref(null);
+const paymentType = ref("credit");
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
 
@@ -277,13 +286,21 @@ const save = async () => {
   }
 
   if (isSaleOrPurchase.value && !selectedParty.value?._id) {
-    alert("Please select customer/supplier");
+    if (paymentType.value === "credit") {
+      alert("Please select customer/supplier for credit");
+      return;
+    }
+  }
+
+  if (isSaleOrPurchase.value && !["cash", "bank", "credit"].includes(paymentType.value)) {
+    alert("Please select payment type");
     return;
   }
 
   if (transactionType.value === "sale") {
     await http.post("/sales", {
-      partyId: selectedParty.value._id,
+      partyId: selectedParty.value?._id || null,
+      paymentType: paymentType.value,
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),
     });
@@ -293,7 +310,8 @@ const save = async () => {
 
   if (transactionType.value === "purchase") {
     await http.post("/purchase", {
-      partyId: selectedParty.value._id,
+      partyId: selectedParty.value?._id || null,
+      paymentType: paymentType.value,
       invoiceNo: billNumber.value.trim(),
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),

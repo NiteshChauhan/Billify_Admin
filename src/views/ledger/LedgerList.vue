@@ -10,6 +10,9 @@
           <option value="all">All</option>
           <option value="customer">Customer</option>
           <option value="supplier">Supplier</option>
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="credit">Credit</option>
         </select>
       </div>
       <div class="right">
@@ -26,23 +29,38 @@
             <th>Total Bill Amount</th>
             <th>Outstanding</th>
             <th>Paid</th>
-            <th>Total Bills</th>
+            <th>Total Invoices</th>
+            <th>Total Transactions</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="7" class="empty">No parties found</td>
+            <td colspan="8" class="empty">No records found</td>
           </tr>
-          <tr v-for="(row, idx) in rows" :key="row.partyId">
+          <tr v-for="(row, idx) in rows" :key="`${row.type}-${row.referenceId}`">
             <td>{{ idx + 1 }}</td>
             <td>{{ row.name }}</td>
             <td class="num">{{ money(row.totalBillAmount) }}</td>
             <td class="num">{{ money(row.outstanding) }}</td>
             <td class="num">{{ money(row.paid) }}</td>
-            <td class="num">{{ row.totalBills }}</td>
+            <td class="num">{{ row.totalInvoices ?? row.totalBills ?? 0 }}</td>
+            <td class="num">{{ row.totalTransactions ?? 0 }}</td>
             <td>
-              <router-link class="btn ghost" :to="`/ledger/${row.partyId}`">View</router-link>
+              <router-link
+                v-if="row.type === 'party'"
+                class="btn ghost"
+                :to="`/ledger/${row.referenceId}`"
+              >
+                View
+              </router-link>
+              <router-link
+                v-else
+                class="btn ghost"
+                :to="`/ledger/type/${row.type}`"
+              >
+                View
+              </router-link>
             </td>
           </tr>
         </tbody>
@@ -58,105 +76,42 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import http from "@/api/http";
-import { getUsersApi } from "@/api/userApi";
+import { ref, computed, onMounted, watch } from "vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
-import { hasUserRole } from "@/utils/userRole";
+import http from "@/api/http";
 
 const search = ref("");
 const typeFilter = ref("all");
-const users = ref([]);
-const purchases = ref([]);
-const sales = ref([]);
-const payments = ref([]);
+const rowsFromApi = ref([]);
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 const load = async () => {
   const fy = getFinancialYearParams();
-  const [userRes, purchaseRes, salesRes, payRes] = await Promise.all([
-    getUsersApi(),
-    http.get("/purchase", { params: fy }),
-    http.get("/sales", { params: fy }),
-    http.get("/payments", { params: fy }),
-  ]);
-  users.value = userRes.data || [];
-  purchases.value = purchaseRes.data || [];
-  sales.value = salesRes.data || [];
-  payments.value = payRes.data || [];
+  const res = await http.get("/reports/ledger-list", {
+    params: { ...fy, type: typeFilter.value },
+  });
+  rowsFromApi.value = res.data || [];
 };
 
 onMounted(load);
 
-const partyRows = computed(() => {
-  const map = new Map();
-
-  const ensure = (partyId, name, roles = []) => {
-    if (!partyId) return null;
-    if (!map.has(partyId)) {
-      map.set(partyId, {
-        partyId,
-        name: name || "-",
-        roles,
-        totalSales: 0,
-        totalPurchase: 0,
-        paidReceived: 0,
-        totalBills: 0,
-      });
-    }
-    return map.get(partyId);
-  };
-
-  users.value.forEach((u) => {
-    ensure(String(u._id), u.name, u.roles || []);
-  });
-
-  purchases.value.forEach((inv) => {
-    const row = ensure(String(inv.partyId?._id || inv.partyId), inv.partyId?.name, ["supplier"]);
-    if (row) {
-      row.totalPurchase += Number(inv.totalAmount || 0);
-      row.totalBills += 1;
-    }
-  });
-
-  sales.value.forEach((inv) => {
-    const row = ensure(String(inv.partyId?._id || inv.partyId), inv.partyId?.name, ["customer"]);
-    if (row) {
-      row.totalSales += Number(inv.totalAmount || 0);
-      row.totalBills += 1;
-    }
-  });
-
-  payments.value.forEach((p) => {
-    const row = ensure(String(p.partyId?._id || p.partyId));
-    if (!row) return;
-    const isReceived = p.paymentType === "RECEIVED" || p.invoiceType === "SALE";
-    if (isReceived) row.paidReceived += Number(p.amount || 0);
-  });
-
-  return Array.from(map.values()).map((row) => {
-    const totalBillAmount = row.totalSales + row.totalPurchase;
-    // Outstanding per requested rule: sales - purchase - paymentsReceived
-    const outstanding = row.totalSales - row.totalPurchase - row.paidReceived;
-    return { ...row, totalBillAmount, outstanding, paid: row.paidReceived };
-  });
-});
+watch(typeFilter, load);
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
-  const type = typeFilter.value;
-  return partyRows.value.filter((r) => {
-    const matchName = !q || (r.name || "").toLowerCase().includes(q);
-    const matchType =
-      type === "all" ||
-      (type === "customer" && hasUserRole({ roles: r.roles }, "customer")) ||
-      (type === "supplier" && hasUserRole({ roles: r.roles }, "supplier"));
-    return matchName && matchType;
-  });
+  return rowsFromApi.value
+    .filter((r) => {
+      const matchName = !q || (r.name || "").toLowerCase().includes(q);
+      return matchName;
+    })
+    .map((r) => ({
+      ...r,
+      totalBillAmount: r.totalAmount,
+    }));
 });
 
-const rows = computed(() => filtered.value.sort((a, b) => a.name.localeCompare(b.name)));
+const rows = computed(() => filtered.value.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))));
 
 const summary = computed(() =>
   rows.value.reduce(

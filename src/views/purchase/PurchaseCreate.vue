@@ -19,6 +19,15 @@
       </div>
 
       <div>
+        <label>Payment Type</label>
+        <select v-model="form.paymentType">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="credit">Credit</option>
+        </select>
+      </div>
+
+      <div>
         <label>Invoice Date</label>
         <input type="date" v-model="form.invoiceDate" />
       </div>
@@ -87,7 +96,7 @@
 
       <div>
         Paid:
-        <input type="number" v-model.number="form.paidAmount" />
+        <input type="number" v-model.number="form.paidAmount" :disabled="form.paymentType !== 'credit'" />
       </div>
     </div>
 
@@ -114,6 +123,7 @@ const form = reactive({
   invoiceNo: "",
   supplierId: "",
   invoiceDate: "",
+  paymentType: "credit",
   items: [createItem()],
   tax: 0,
   paidAmount: 0
@@ -168,8 +178,13 @@ const save = async () => {
     return;
   }
 
-  if (!form.supplierId) {
-    alert("Supplier is required");
+  if (!["cash", "bank", "credit"].includes(form.paymentType)) {
+    alert("Payment type is required");
+    return;
+  }
+
+  if (form.paymentType === "credit" && !form.supplierId) {
+    alert("Supplier is required for credit");
     return;
   }
 
@@ -189,10 +204,12 @@ const save = async () => {
   await createPurchaseApi({
     invoiceNo: form.invoiceNo.trim(),
     invoiceDate: form.invoiceDate,
+    paymentType: form.paymentType,
     items: payloadItems,
     tax: Number(form.tax || 0),
-    paidAmount: Number(form.paidAmount || 0),
-    partyId: form.supplierId,
+    paidAmount:
+      form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
+    partyId: form.supplierId || null,
   });
   router.push("/purchase");
 };

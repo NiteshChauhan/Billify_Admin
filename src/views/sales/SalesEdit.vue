@@ -10,6 +10,13 @@
       placeholder="Select Customer"
     />
 
+    <label>Payment Type</label>
+    <select v-model="paymentType">
+      <option value="cash">Cash</option>
+      <option value="bank">Bank</option>
+      <option value="credit">Credit</option>
+    </select>
+
     <!-- ITEMS -->
     <table>
       <thead>
@@ -62,7 +69,7 @@
 
     <!-- PAID -->
     <label>Paid Amount</label>
-    <input type="number" v-model.number="paidAmount" />
+    <input type="number" v-model.number="paidAmount" :disabled="paymentType !== 'credit'" />
 
     <div class="total">
       <strong>Total: ₹ {{ total }}</strong>
@@ -97,6 +104,7 @@ const users = ref([]);
 const products = ref([]);
 
 const vendorId = ref("");
+const paymentType = ref("credit");
 const items = ref([]);
 const tax = ref(0);
 const paidAmount = ref(0);
@@ -121,6 +129,7 @@ onMounted(async () => {
 
   tax.value = data.tax || 0;
   paidAmount.value = data.paidAmount || 0;
+  paymentType.value = (data.paymentType || "credit").toString().toLowerCase();
 
   // ✅ Normalize items
   items.value = data.items.map((i) => ({
@@ -157,8 +166,13 @@ const total = computed(
 );
 
 const update = async () => {
-  if (!vendorId.value) {
-    alert("Customer is required");
+  if (!["cash", "bank", "credit"].includes(paymentType.value)) {
+    alert("Payment type is required");
+    return;
+  }
+
+  if (paymentType.value === "credit" && !vendorId.value) {
+    alert("Customer is required for credit");
     return;
   }
 
@@ -178,10 +192,11 @@ const update = async () => {
   const id = route.params.id;
 
   await updateSalesApi(id, {
-    partyId: vendorId.value,
+    partyId: vendorId.value || null,
+    paymentType: paymentType.value,
     items: payloadItems,
     tax: tax.value,
-    paidAmount: paidAmount.value
+    paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value
   });
 
   router.push("/sales");

@@ -9,6 +9,13 @@
       placeholder="Select Customer"
     />
 
+    <label>Payment Type</label>
+    <select v-model="paymentType">
+      <option value="cash">Cash</option>
+      <option value="bank">Bank</option>
+      <option value="credit">Credit</option>
+    </select>
+
     <table>
       <thead>
         <tr>
@@ -46,7 +53,7 @@
     <input type="number" v-model.number="tax" />
 
     <label>Paid Amount (optional)</label>
-    <input type="number" v-model.number="paidAmount" />
+    <input type="number" v-model.number="paidAmount" :disabled="paymentType !== 'credit'" />
 
     <div class="total">Total: ₹ {{ total }}</div>
 
@@ -68,6 +75,7 @@ const users = ref([]);
 const products = ref([]);
 
 const vendorId = ref("");
+const paymentType = ref("credit");
 const items = ref([{ productId: "", quantity: 1, rate: 0 }]);
 const tax = ref(0);
 const paidAmount = ref(0);
@@ -90,8 +98,13 @@ const total = computed(
 );
 
 const save = async () => {
-  if (!vendorId.value) {
-    alert("Customer is required");
+  if (!["cash", "bank", "credit"].includes(paymentType.value)) {
+    alert("Payment type is required");
+    return;
+  }
+
+  if (paymentType.value === "credit" && !vendorId.value) {
+    alert("Customer is required for credit");
     return;
   }
 
@@ -109,10 +122,11 @@ const save = async () => {
   }
 
   await http.post("/sales", {
-    partyId: vendorId.value,
+    partyId: vendorId.value || null,
+    paymentType: paymentType.value,
     items: payloadItems,
     tax: tax.value,
-    paidAmount: paidAmount.value,
+    paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
   });
 
   router.push("/sales");
