@@ -120,6 +120,11 @@ const navItems = [
     path: "/reports/outstanding",
     icon: "M6 6h12v12H6zM9 9h6v6H9",
   },
+  {
+    label: "Day Book",
+    path: "/reports/daily",
+    icon: "M4 5h16v14H4zM8 3v4M16 3v4M4 10h16",
+  },
 ];
 
 const sidebarWidth = computed(() => (isSidebarOpen.value ? "280px" : "88px"));

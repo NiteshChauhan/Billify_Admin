@@ -63,6 +63,7 @@ const routes = [
       { path: "reports/outstanding", component: () => import("@/views/reports/OutstandingReport.vue") },
       { path: "reports/ageing", component: () => import("@/views/reports/AgeingReport.vue") },
       { path: "reports/supplier-outstanding", component: () => import("@/views/reports/SupplierOutstanding.vue") },
+      { path: "reports/daily", component: () => import("@/views/reports/DailyReport.vue") },
       { path: "reports/profit", component: () => import("@/views/dashboard/ProfitDashboard.vue") },
     ],
   },
