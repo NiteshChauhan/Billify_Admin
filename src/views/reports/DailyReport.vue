@@ -4,6 +4,10 @@
       <div class="head-card">
         <span class="head-label">Opening Balance</span>
         <strong>{{ money(summary.openingBalance) }}</strong>
+        <div class="opening-edit">
+          <input type="number" v-model.number="openingBalanceInput" />
+          <button class="btn secondary" @click="saveOpeningBalance">Save</button>
+        </div>
       </div>
       <div class="head-card align-right">
         <span class="head-label">Date + Day</span>
@@ -41,6 +45,8 @@
       </label>
 
       <div class="actions">
+        <button class="btn secondary" @click="showBankModal = true">Add Bank Account</button>
+        <button class="btn primary" @click="showExpenseModal = true">Add Expense</button>
         <button class="btn secondary" @click="resetFilters">Reset</button>
       </div>
     </div>
@@ -53,27 +59,31 @@
             <th>Type</th>
             <th>Party</th>
             <th>Payment Type</th>
+            <th>Reference</th>
             <th class="num">Amount</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!rows.length">
-            <td colspan="6" class="empty">No data found</td>
+            <td colspan="7" class="empty">No data found</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.type}-${row.billId}`">
             <td>{{ formatDate(row.date) }}</td>
-            <td>{{ row.type === "sale" ? "Sale" : "Purchase" }}</td>
+            <td>{{ typeLabel(row.type) }}</td>
             <td>{{ row.partyName || "Cash" }}</td>
             <td class="capitalize">{{ row.paymentType }}</td>
+            <td>{{ row.type === "expense" ? (row.note || row.bankAccountName || "-") : (row.bankAccountName || "-") }}</td>
             <td class="num">{{ money(row.amount) }}</td>
             <td>
               <router-link
+                v-if="row.type !== 'expense'"
                 class="btn ghost"
                 :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
               >
                 View
               </router-link>
+              <span v-else>-</span>
             </td>
           </tr>
         </tbody>
@@ -90,8 +100,78 @@
         <strong>{{ money(summary.totalPurchase) }}</strong>
       </div>
       <div class="summary-card">
+        <span>Total Expenses</span>
+        <strong>{{ money(summary.totalExpenses) }}</strong>
+      </div>
+      <div class="summary-card">
         <span>Closing Balance</span>
         <strong>{{ money(summary.closingBalance) }}</strong>
+      </div>
+    </div>
+
+    <div v-if="showExpenseModal" class="modal-wrap">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Add Expense</h3>
+          <button class="close-btn" @click="showExpenseModal = false">X</button>
+        </div>
+        <label class="field">
+          <span>Title</span>
+          <input v-model.trim="expenseForm.title" type="text" />
+        </label>
+        <label class="field">
+          <span>Amount</span>
+          <input v-model.number="expenseForm.amount" type="number" min="0" step="0.01" />
+        </label>
+        <label class="field">
+          <span>Payment Type</span>
+          <select v-model="expenseForm.paymentType">
+            <option value="cash">Cash</option>
+            <option value="bank">Bank</option>
+          </select>
+        </label>
+        <label v-if="expenseForm.paymentType === 'bank'" class="field">
+          <span>Bank Account</span>
+          <select v-model="expenseForm.bankAccountId">
+            <option value="">Select Bank Account</option>
+            <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+              {{ account.accountName }} - {{ account.accountNumber }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Note</span>
+          <input v-model.trim="expenseForm.note" type="text" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn primary" @click="saveExpense">Save Expense</button>
+          <button class="btn secondary" @click="showExpenseModal = false">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showBankModal" class="modal-wrap">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Add Bank Account</h3>
+          <button class="close-btn" @click="showBankModal = false">X</button>
+        </div>
+        <label class="field">
+          <span>Account Name</span>
+          <input v-model.trim="bankForm.accountName" type="text" />
+        </label>
+        <label class="field">
+          <span>Account Number</span>
+          <input v-model.trim="bankForm.accountNumber" type="text" />
+        </label>
+        <label class="field">
+          <span>Balance</span>
+          <input v-model.number="bankForm.balance" type="number" min="0" step="0.01" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn primary" @click="saveBankAccount">Save Account</button>
+          <button class="btn secondary" @click="showBankModal = false">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -111,17 +191,35 @@ const filters = reactive({
 });
 
 const rows = ref([]);
+const bankAccounts = ref([]);
+const openingBalanceInput = ref(0);
+const showExpenseModal = ref(false);
+const showBankModal = ref(false);
 const summary = ref({
   openingBalance: 0,
   totalSales: 0,
   totalPurchase: 0,
+  totalExpenses: 0,
   closingBalance: 0,
+});
+const expenseForm = reactive({
+  title: "",
+  amount: 0,
+  paymentType: "cash",
+  bankAccountId: "",
+  note: "",
+});
+const bankForm = reactive({
+  accountName: "",
+  accountNumber: "",
+  balance: 0,
 });
 
 let searchTimer = null;
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString("en-IN") : "-");
+const typeLabel = (type) => ({ sale: "Sale", purchase: "Purchase", expense: "Expense" }[type] || type);
 
 const headerDate = computed(() => {
   const date = new Date(filters.date);
@@ -136,22 +234,83 @@ const headerDate = computed(() => {
 });
 
 const load = async () => {
-  const res = await http.get("/reports/daily", {
-    params: {
-      date: filters.date,
-      paymentType: filters.paymentType,
-      type: filters.type,
-      search: filters.search,
-    },
-  });
+  const [dailyRes, bankRes] = await Promise.all([
+    http.get("/reports/daily", {
+      params: {
+        date: filters.date,
+        paymentType: filters.paymentType,
+        type: filters.type,
+        search: filters.search,
+      },
+    }),
+    http.get("/bank-accounts"),
+  ]);
 
-  rows.value = res.data.rows || [];
-  summary.value = res.data.summary || {
+  rows.value = dailyRes.data.rows || [];
+  summary.value = dailyRes.data.summary || {
     openingBalance: 0,
     totalSales: 0,
     totalPurchase: 0,
+    totalExpenses: 0,
     closingBalance: 0,
   };
+  openingBalanceInput.value = Number(summary.value.openingBalance || 0);
+  bankAccounts.value = bankRes.data || [];
+};
+
+const saveOpeningBalance = async () => {
+  await http.post("/company-balance", {
+    date: filters.date,
+    openingBalance: Number(openingBalanceInput.value || 0),
+  });
+  await load();
+};
+
+const saveExpense = async () => {
+  if (!expenseForm.title || Number(expenseForm.amount || 0) <= 0) {
+    alert("Title and amount are required");
+    return;
+  }
+  if (expenseForm.paymentType === "bank" && !expenseForm.bankAccountId) {
+    alert("Select bank account for bank expense");
+    return;
+  }
+
+  await http.post("/expenses", {
+    date: filters.date,
+    title: expenseForm.title,
+    amount: Number(expenseForm.amount || 0),
+    paymentType: expenseForm.paymentType,
+    bankAccountId: expenseForm.paymentType === "bank" ? expenseForm.bankAccountId : null,
+    note: expenseForm.note,
+  });
+
+  expenseForm.title = "";
+  expenseForm.amount = 0;
+  expenseForm.paymentType = "cash";
+  expenseForm.bankAccountId = "";
+  expenseForm.note = "";
+  showExpenseModal.value = false;
+  await load();
+};
+
+const saveBankAccount = async () => {
+  if (!bankForm.accountName || !bankForm.accountNumber) {
+    alert("Account name and account number are required");
+    return;
+  }
+
+  await http.post("/bank-accounts", {
+    accountName: bankForm.accountName,
+    accountNumber: bankForm.accountNumber,
+    balance: Number(bankForm.balance || 0),
+  });
+
+  bankForm.accountName = "";
+  bankForm.accountNumber = "";
+  bankForm.balance = 0;
+  showBankModal.value = false;
+  await load();
 };
 
 const resetFilters = async () => {
@@ -249,6 +408,7 @@ select {
 .actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .btn {
@@ -262,6 +422,11 @@ select {
   text-decoration: none;
   cursor: pointer;
   font-weight: 600;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: #fff;
 }
 
 .btn.secondary {
@@ -321,7 +486,7 @@ tbody tr:hover {
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
   gap: 14px;
   margin-top: 16px;
 }
@@ -351,5 +516,50 @@ tbody tr:hover {
   .align-right {
     text-align: left;
   }
+}
+
+.opening-edit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.modal-wrap {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  width: min(460px, 92vw);
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.close-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

@@ -2,8 +2,14 @@
   <div class="card">
     <div class="head">
       <h2>Product List</h2>
-      <button class="btn" @click="openCreate">Add Product</button>
+      <div class="head-actions">
+        <button class="btn-light" @click="downloadSampleCsv">Download Sample CSV</button>
+        <button class="btn-light" @click="triggerUpload">Upload CSV</button>
+        <button class="btn" @click="openCreate">Add Product</button>
+      </div>
     </div>
+    <input ref="fileInput" type="file" accept=".csv,text/csv" class="hidden-input" @change="handleCsvUpload" />
+    <p v-if="uploadMessage" class="upload-message">{{ uploadMessage }}</p>
 
     <div class="toolbar">
       <input v-model="search" placeholder="Search Product" />
@@ -52,6 +58,7 @@
         <label>Product Name <input v-model="form.name" /></label>
         <label>SKU <input v-model="form.sku" /></label>
         <label>Opening Stock <input type="number" min="0" step="0.01" v-model.number="form.openingStock" /></label>
+        <label>Price <input type="number" min="0" step="0.01" v-model.number="form.price" /></label>
         <label>Opening Rate (Cost) <input type="number" min="0" step="0.01" v-model.number="form.openingRate" /></label>
         <div class="modal-actions">
           <button class="btn btn-primary" @click="save">Save</button>
@@ -72,7 +79,9 @@ const stockFilter = ref("all");
 
 const showModal = ref(false);
 const editId = ref("");
-const form = reactive({ name: "", sku: "", openingStock: 0, openingRate: 0 });
+const form = reactive({ name: "", sku: "", openingStock: 0, price: 0, openingRate: 0 });
+const fileInput = ref(null);
+const uploadMessage = ref("");
 
 const load = async () => {
   const products = (await http.get("/products")).data || [];
@@ -109,6 +118,7 @@ const openCreate = () => {
   form.name = "";
   form.sku = "";
   form.openingStock = 0;
+  form.price = 0;
   form.openingRate = 0;
   showModal.value = true;
 };
@@ -118,12 +128,37 @@ const openEdit = (product) => {
   form.name = product.name || "";
   form.sku = product.sku || "";
   form.openingStock = Number(product.openingStock || 0);
+  form.price = Number(product.price || 0);
   form.openingRate = Number(product.openingRate || 0);
   showModal.value = true;
 };
 
 const closeModal = () => {
   showModal.value = false;
+};
+
+const downloadSampleCsv = async () => {
+  const res = await http.get("/products/sample-csv", { responseType: "blob" });
+  const url = URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "products-sample.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const triggerUpload = () => {
+  fileInput.value?.click();
+};
+
+const handleCsvUpload = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const csvText = await file.text();
+  const res = await http.post("/products/bulk-upload", { csvText });
+  uploadMessage.value = `Inserted: ${res.data.insertedCount}, Skipped: ${res.data.skippedCount}, Errors: ${res.data.errorCount}`;
+  event.target.value = "";
+  await load();
 };
 
 const save = async () => {
@@ -137,6 +172,7 @@ const save = async () => {
       name: form.name,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
+      price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
     });
   } else {
@@ -144,6 +180,7 @@ const save = async () => {
       name: form.name,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
+      price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
     });
   }
@@ -156,6 +193,7 @@ const save = async () => {
 <style scoped>
 .card { background: #fff; border-radius: 12px; padding: 18px; }
 .head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.head-actions { display: flex; gap: 8px; align-items: center; }
 .toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
 input, select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
 table { width: 100%; border-collapse: collapse; }
@@ -165,6 +203,8 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .empty { text-align: center; color: #64748b; }
 .btn { background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
 .btn-light { border: 1px solid #cbd5e1; background: #fff; color: #0f172a; border-radius: 8px; padding: 8px 12px; }
+.hidden-input { display: none; }
+.upload-message { margin: 8px 0 12px; color: #475569; }
 .modal-wrap { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.45); display: grid; place-items: center; }
 .modal { width: min(420px, 92vw); background: #fff; border-radius: 12px; padding: 16px; display: grid; gap: 10px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; }

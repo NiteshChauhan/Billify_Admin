@@ -27,6 +27,16 @@
         </select>
       </div>
 
+      <div v-if="form.paymentType === 'bank'">
+        <label>Bank Account</label>
+        <select v-model="form.bankAccountId">
+          <option value="">Select Bank Account</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }} - {{ account.accountNumber }}
+          </option>
+        </select>
+      </div>
+
       <div>
         <label>Invoice Date</label>
         <input type="date" v-model="form.invoiceDate" />
@@ -71,6 +81,7 @@
 
           <td>
             <input type="number" min="0" v-model.number="i.rate" />
+            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
           </td>
 
           <td class="num">
@@ -130,6 +141,7 @@ const route = useRoute();
 
 const users = ref([]);
 const products = ref([]);
+const bankAccounts = ref([]);
 const loaded = ref(false);
 
 const form = reactive({
@@ -138,6 +150,7 @@ const form = reactive({
   invoiceDate: "",
   items: [],
   paymentType: "credit",
+  bankAccountId: "",
   tax: 0,
   paidAmount: 0
 });
@@ -147,7 +160,8 @@ function createItem() {
     productId: "",
     quantity: 1,
     rate: 0,
-    availableStock: null
+    availableStock: null,
+    lastRate: null,
   };
 }
 
@@ -157,6 +171,7 @@ onMounted(async () => {
   // Load dropdown data
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
+  bankAccounts.value = (await http.get("/bank-accounts")).data || [];
 
   // Load purchase data
   const res = await getPurchaseByIdApi(id);
@@ -172,6 +187,7 @@ onMounted(async () => {
   form.tax = data.tax || 0;
   form.paidAmount = data.paidAmount || 0;
   form.paymentType = (data.paymentType || "credit").toString().toLowerCase();
+  form.bankAccountId = data.bankAccountId?._id || data.bankAccountId || "";
 
   // ✅ Normalize items
   form.items = data.items.map(item => ({
@@ -180,7 +196,8 @@ onMounted(async () => {
     ),
     quantity: item.quantity,
     rate: item.rate,
-    availableStock: null
+    availableStock: null,
+    lastRate: null,
   }));
 
   loaded.value = true;
@@ -199,7 +216,14 @@ const onProductChange = async (item) => {
   const stockRes = await http.get(`/stock/${item.productId}`);
   item.availableStock = stockRes.data.stock;
 
-  item.rate = product?.lastPurchaseRate || 0;
+  const lastRateRes =
+    form.supplierId
+      ? await http.get(`/products/${item.productId}/last-rate`, {
+          params: { partyId: form.supplierId, type: "purchase" },
+        })
+      : { data: { lastRate: null } };
+  item.lastRate = lastRateRes.data?.lastRate ?? null;
+  item.rate = item.lastRate ?? (product?.lastPurchaseRate || 0);
   item.quantity = 1;
 };
 
@@ -220,6 +244,10 @@ const update = async () => {
 
   if (!["cash", "bank", "credit"].includes(form.paymentType)) {
     alert("Payment type is required");
+    return;
+  }
+  if (form.paymentType === "bank" && !form.bankAccountId) {
+    alert("Bank account is required for bank payment");
     return;
   }
 
@@ -246,6 +274,7 @@ const update = async () => {
     invoiceNo: form.invoiceNo.trim(),
     invoiceDate: form.invoiceDate,
     paymentType: form.paymentType,
+    bankAccountId: form.paymentType === "bank" ? form.bankAccountId : null,
     items: payloadItems,
     tax: Number(form.tax || 0),
     paidAmount:
@@ -286,6 +315,13 @@ input,
 select {
   width: 100%;
   padding: 8px;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .items {

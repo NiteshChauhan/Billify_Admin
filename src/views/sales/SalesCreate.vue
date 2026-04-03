@@ -16,6 +16,16 @@
       <option value="credit">Credit</option>
     </select>
 
+    <template v-if="paymentType === 'bank'">
+      <label>Bank Account</label>
+      <select v-model="bankAccountId">
+        <option value="">Select Bank Account</option>
+        <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+          {{ account.accountName }} - {{ account.accountNumber }}
+        </option>
+      </select>
+    </template>
+
     <table>
       <thead>
         <tr>
@@ -30,7 +40,7 @@
       <tbody>
         <tr v-for="(i, idx) in items" :key="idx">
           <td>
-            <select v-model="i.productId">
+            <select v-model="i.productId" @change="onProductChange(i)">
               <option value="">Select</option>
               <option v-for="p in products" :value="p._id">
                 {{ p.name }}
@@ -38,7 +48,10 @@
             </select>
           </td>
           <td><input type="number" v-model.number="i.quantity" /></td>
-          <td><input type="number" v-model.number="i.rate" /></td>
+          <td>
+            <input type="number" v-model.number="i.rate" />
+            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
+          </td>
           <td>₹ {{ i.quantity * i.rate || 0 }}</td>
           <td>
             <button @click="remove(idx)">❌</button>
@@ -73,23 +86,38 @@ const router = useRouter();
 
 const users = ref([]);
 const products = ref([]);
+const bankAccounts = ref([]);
 
 const vendorId = ref("");
 const paymentType = ref("credit");
-const items = ref([{ productId: "", quantity: 1, rate: 0 }]);
+const bankAccountId = ref("");
+const items = ref([{ productId: "", quantity: 1, rate: 0, lastRate: null }]);
 const tax = ref(0);
 const paidAmount = ref(0);
 
 onMounted(async () => {
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
+  bankAccounts.value = (await http.get("/bank-accounts")).data || [];
 });
 
 const vendorUsers = computed(() =>
   users.value.filter((user) => hasUserRole(user, "customer")),
 );
 
-const add = () => items.value.push({ productId: "", quantity: 1, rate: 0 });
+const add = () => items.value.push({ productId: "", quantity: 1, rate: 0, lastRate: null });
+
+const onProductChange = async (item) => {
+  item.lastRate = null;
+  if (!item.productId || !vendorId.value) return;
+  const res = await http.get(`/products/${item.productId}/last-rate`, {
+    params: { partyId: vendorId.value, type: "sale" },
+  });
+  item.lastRate = res.data?.lastRate ?? null;
+  if (item.lastRate !== null) {
+    item.rate = item.lastRate;
+  }
+};
 
 const remove = (i) => items.value.splice(i, 1);
 
@@ -100,6 +128,10 @@ const total = computed(
 const save = async () => {
   if (!["cash", "bank", "credit"].includes(paymentType.value)) {
     alert("Payment type is required");
+    return;
+  }
+  if (paymentType.value === "bank" && !bankAccountId.value) {
+    alert("Bank account is required for bank payment");
     return;
   }
 
@@ -124,6 +156,7 @@ const save = async () => {
   await http.post("/sales", {
     partyId: vendorId.value || null,
     paymentType: paymentType.value,
+    bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
     items: payloadItems,
     tax: tax.value,
     paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
@@ -151,6 +184,13 @@ input,
 select {
   width: 100%;
   padding: 6px;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .save {

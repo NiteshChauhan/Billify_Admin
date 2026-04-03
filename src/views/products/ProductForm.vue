@@ -23,6 +23,11 @@
       </div>
 
       <div class="form-group">
+        <label>Price</label>
+        <input type="number" min="0" step="0.01" v-model.number="form.price" />
+      </div>
+
+      <div class="form-group">
         <label>Opening Rate (Cost)</label>
         <input type="number" min="0" step="0.01" v-model.number="form.openingRate" />
       </div>
@@ -91,6 +96,7 @@ const form = reactive({
   name: "",
   sku: "",
   openingStock: 0,
+  price: 0,
   openingRate: 0,
   attributes: [
     { key: "", value: "" }
@@ -109,6 +115,7 @@ onMounted(async () => {
       form.name = res.data.name;
       form.sku = res.data.sku;
       form.openingStock = Number(res.data.openingStock || 0);
+      form.price = Number(res.data.price || 0);
       form.openingRate = Number(res.data.openingRate || 0);
 
       /* 🔥 Convert attributes object → array */
@@ -145,6 +152,7 @@ const submit = async () => {
       name: form.name,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
+      price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
       attributes: attributesObj
     };

@@ -20,6 +20,16 @@
         <option value="CHEQUE">CHEQUE</option>
       </select>
 
+      <template v-if="paymentMode === 'BANK'">
+        <label>Bank Account</label>
+        <select v-model="bankAccountId">
+          <option value="">Select Bank Account</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }} - {{ account.accountNumber }}
+          </option>
+        </select>
+      </template>
+
       <label>Reference No</label>
       <input v-model="referenceNo" />
 
@@ -41,31 +51,39 @@ const router = useRouter();
 
 const invoice = ref({ totalAmount: 0, paidAmount: 0 });
 const party = ref({});
+const bankAccounts = ref([]);
 
 const amount = ref(0);
 const paymentMode = ref("CASH");
+const bankAccountId = ref("");
 const referenceNo = ref("");
 const remarks = ref("");
 
 onMounted(async () => {
-  const res = await http.get(`/purchase/${route.params.id}`);
+  const [purchaseRes, bankRes] = await Promise.all([http.get(`/purchase/${route.params.id}`), http.get("/bank-accounts")]);
   invoice.value = {
-    totalAmount: res.data.totalAmount,
-    paidAmount: res.data.paidAmount,
+    totalAmount: purchaseRes.data.totalAmount,
+    paidAmount: purchaseRes.data.paidAmount,
   };
-  party.value = res.data.partyId || res.data.supplierId || {};
+  party.value = purchaseRes.data.partyId || purchaseRes.data.supplierId || {};
+  bankAccounts.value = bankRes.data || [];
 });
 
 const balance = computed(() => (invoice.value.totalAmount || 0) - (invoice.value.paidAmount || 0));
 const canSave = computed(() => amount.value > 0 && amount.value <= balance.value && balance.value > 0);
 
 const save = async () => {
+  if (paymentMode.value === "BANK" && !bankAccountId.value) {
+    alert("Bank account is required for bank payment");
+    return;
+  }
   await http.post("/payments", {
     partyId: party.value._id,
     invoiceType: "PURCHASE",
     invoiceId: route.params.id,
     amount: Number(amount.value),
     paymentMode: paymentMode.value,
+    bankAccountId: paymentMode.value === "BANK" ? bankAccountId.value : null,
     referenceNo: referenceNo.value,
     remarks: remarks.value,
   });

@@ -27,6 +27,16 @@
         </select>
       </div>
 
+      <div v-if="form.paymentType === 'bank'">
+        <label>Bank Account</label>
+        <select v-model="form.bankAccountId">
+          <option value="">Select Bank Account</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }} - {{ account.accountNumber }}
+          </option>
+        </select>
+      </div>
+
       <div>
         <label>Invoice Date</label>
         <input type="date" v-model="form.invoiceDate" />
@@ -68,6 +78,7 @@
 
           <td>
             <input type="number" min="0" v-model.number="i.rate" />
+            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
           </td>
 
           <td class="num">
@@ -118,12 +129,14 @@ const router = useRouter();
 
 const users = ref([]);
 const products = ref([]);
+const bankAccounts = ref([]);
 
 const form = reactive({
   invoiceNo: "",
   supplierId: "",
   invoiceDate: "",
   paymentType: "credit",
+  bankAccountId: "",
   items: [createItem()],
   tax: 0,
   paidAmount: 0
@@ -134,13 +147,15 @@ function createItem() {
     productId: "",
     quantity: 1,
     rate: 0,
-    availableStock: null
+    availableStock: null,
+    lastRate: null,
   };
 }
 
 onMounted(async () => {
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
+  bankAccounts.value = (await http.get("/bank-accounts")).data || [];
 });
 
 const supplierUsers = computed(() =>
@@ -159,7 +174,14 @@ const onProductChange = async (item) => {
   item.availableStock = stockRes.data.stock;
 
   // 3️⃣ Auto rate (fallback safe)
-  item.rate = product?.lastPurchaseRate || 0;
+  const lastRateRes =
+    form.supplierId
+      ? await http.get(`/products/${item.productId}/last-rate`, {
+          params: { partyId: form.supplierId, type: "purchase" },
+        })
+      : { data: { lastRate: null } };
+  item.lastRate = lastRateRes.data?.lastRate ?? null;
+  item.rate = item.lastRate ?? product?.lastPurchaseRate ?? 0;
   item.quantity = 1;
 };
 
@@ -180,6 +202,10 @@ const save = async () => {
 
   if (!["cash", "bank", "credit"].includes(form.paymentType)) {
     alert("Payment type is required");
+    return;
+  }
+  if (form.paymentType === "bank" && !form.bankAccountId) {
+    alert("Bank account is required for bank payment");
     return;
   }
 
@@ -205,6 +231,7 @@ const save = async () => {
     invoiceNo: form.invoiceNo.trim(),
     invoiceDate: form.invoiceDate,
     paymentType: form.paymentType,
+    bankAccountId: form.paymentType === "bank" ? form.bankAccountId : null,
     items: payloadItems,
     tax: Number(form.tax || 0),
     paidAmount:
@@ -244,6 +271,13 @@ input,
 select {
   width: 100%;
   padding: 8px;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .items {

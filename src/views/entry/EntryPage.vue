@@ -35,6 +35,15 @@
           <option value="credit">Credit</option>
         </select>
       </label>
+      <label v-if="paymentType === 'bank'" class="field-inline compact">
+        <span>Bank Account</span>
+        <select v-model="bankAccountId">
+          <option value="">Select Bank Account</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }} - {{ account.accountNumber }}
+          </option>
+        </select>
+      </label>
       <button class="btn btn-primary" @click="leftOpen = true">Select Party</button>
       <button class="btn btn-secondary" @click="rightOpen = true">Select Product</button>
       <div class="selected">Party: {{ selectedParty?.name || 'Not selected' }}</div>
@@ -77,6 +86,9 @@
             </td>
             <td>
               <input type="number" min="0" v-model.number="row.rate" :readonly="isReturn" />
+              <div v-if="isSaleOrPurchase && row.lastRate !== null" class="rate-hint">
+                Last rate: {{ money(row.lastRate) }}
+              </div>
             </td>
             <td>{{ money((row.quantity || 0) * (row.rate || 0)) }}</td>
             <td>
@@ -148,11 +160,13 @@ const products = ref([]);
 const parties = ref([]);
 const selectedParty = ref(null);
 const paymentType = ref("credit");
+const bankAccountId = ref("");
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
 
 const returnBills = ref([]);
 const selectedReturnBillId = ref("");
+const bankAccounts = ref([]);
 
 const leftOpen = ref(false);
 const rightOpen = ref(false);
@@ -200,11 +214,22 @@ const addProduct = async (product) => {
   }
 
   const stockRes = await http.get(`/stock/${product._id}`);
+  let lastRate = null;
+  if (selectedParty.value?._id && isSaleOrPurchase.value) {
+    const lastRateRes = await http.get(`/products/${product._id}/last-rate`, {
+      params: {
+        partyId: selectedParty.value._id,
+        type: transactionType.value,
+      },
+    });
+    lastRate = lastRateRes.data?.lastRate ?? null;
+  }
   rows.value.push({
     productId: product._id,
     productName: product.name,
     quantity: 1,
-    rate: 0,
+    rate: lastRate ?? 0,
+    lastRate,
     availableStock: stockRes.data.stock ?? 0,
   });
   rightOpen.value = false;
@@ -296,11 +321,16 @@ const save = async () => {
     alert("Please select payment type");
     return;
   }
+  if (isSaleOrPurchase.value && paymentType.value === "bank" && !bankAccountId.value) {
+    alert("Please select bank account");
+    return;
+  }
 
   if (transactionType.value === "sale") {
     await http.post("/sales", {
       partyId: selectedParty.value?._id || null,
       paymentType: paymentType.value,
+      bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),
     });
@@ -312,6 +342,7 @@ const save = async () => {
     await http.post("/purchase", {
       partyId: selectedParty.value?._id || null,
       paymentType: paymentType.value,
+      bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceNo: billNumber.value.trim(),
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),
@@ -350,9 +381,10 @@ const save = async () => {
 };
 
 onMounted(async () => {
-  const [productRes, partyRes] = await Promise.all([http.get("/products"), getUsersApi()]);
+  const [productRes, partyRes, bankRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts")]);
   products.value = productRes.data || [];
   parties.value = partyRes.data || [];
+  bankAccounts.value = bankRes.data || [];
   await loadNextBillNo();
   await loadReturnBills();
   if (route.query.billId && isReturn.value) {
@@ -511,6 +543,12 @@ input[type="number"] {
 
 .empty {
   text-align: center;
+  color: #64748b;
+}
+
+.rate-hint {
+  margin-top: 4px;
+  font-size: 12px;
   color: #64748b;
 }
 
