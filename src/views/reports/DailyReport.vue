@@ -46,7 +46,7 @@
 
       <div class="actions">
         <button class="btn secondary" @click="showBankModal = true">Add Bank Account</button>
-        <button class="btn primary" @click="showExpenseModal = true">Add Expense</button>
+        <button class="btn primary" @click="openAddExpense">Add Expense</button>
         <button class="btn secondary" @click="resetFilters">Reset</button>
       </div>
     </div>
@@ -83,7 +83,10 @@
               >
                 View
               </router-link>
-              <span v-else>-</span>
+              <template v-else>
+                <button class="btn ghost" @click="editExpense(row)">Edit</button>
+                <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+              </template>
             </td>
           </tr>
         </tbody>
@@ -112,9 +115,13 @@
     <div v-if="showExpenseModal" class="modal-wrap">
       <div class="modal">
         <div class="modal-head">
-          <h3>Add Expense</h3>
-          <button class="close-btn" @click="showExpenseModal = false">X</button>
+          <h3>{{ expenseForm.id ? "Edit Expense" : "Add Expense" }}</h3>
+          <button class="close-btn" @click="closeExpenseModal">X</button>
         </div>
+        <label class="field">
+          <span>Date</span>
+          <input v-model="expenseForm.date" type="date" />
+        </label>
         <label class="field">
           <span>Title</span>
           <input v-model.trim="expenseForm.title" type="text" />
@@ -145,7 +152,7 @@
         </label>
         <div class="modal-actions">
           <button class="btn primary" @click="saveExpense">Save Expense</button>
-          <button class="btn secondary" @click="showExpenseModal = false">Cancel</button>
+          <button class="btn secondary" @click="closeExpenseModal">Cancel</button>
         </div>
       </div>
     </div>
@@ -203,6 +210,8 @@ const summary = ref({
   closingBalance: 0,
 });
 const expenseForm = reactive({
+  id: "",
+  date: today,
   title: "",
   amount: 0,
   paymentType: "cash",
@@ -267,8 +276,8 @@ const saveOpeningBalance = async () => {
 };
 
 const saveExpense = async () => {
-  if (!expenseForm.title || Number(expenseForm.amount || 0) <= 0) {
-    alert("Title and amount are required");
+  if (!expenseForm.date || !expenseForm.title || Number(expenseForm.amount || 0) <= 0) {
+    alert("Date, title and amount are required");
     return;
   }
   if (expenseForm.paymentType === "bank" && !expenseForm.bankAccountId) {
@@ -276,21 +285,58 @@ const saveExpense = async () => {
     return;
   }
 
-  await http.post("/expenses", {
-    date: filters.date,
+  const payload = {
+    date: expenseForm.date,
     title: expenseForm.title,
     amount: Number(expenseForm.amount || 0),
     paymentType: expenseForm.paymentType,
     bankAccountId: expenseForm.paymentType === "bank" ? expenseForm.bankAccountId : null,
     note: expenseForm.note,
-  });
+  };
 
+  if (expenseForm.id) {
+    await http.put(`/expenses/${expenseForm.id}`, payload);
+  } else {
+    await http.post("/expenses", payload);
+  }
+
+  closeExpenseModal();
+  await load();
+};
+
+const closeExpenseModal = () => {
+  expenseForm.id = "";
+  expenseForm.date = filters.date;
   expenseForm.title = "";
   expenseForm.amount = 0;
   expenseForm.paymentType = "cash";
   expenseForm.bankAccountId = "";
   expenseForm.note = "";
   showExpenseModal.value = false;
+};
+
+const openAddExpense = () => {
+  closeExpenseModal();
+  expenseForm.date = filters.date;
+  showExpenseModal.value = true;
+};
+
+const editExpense = (row) => {
+  expenseForm.id = row.billId;
+  expenseForm.date = row.date ? new Date(row.date).toISOString().slice(0, 10) : filters.date;
+  expenseForm.title = row.partyName || "";
+  expenseForm.amount = Number(row.amount || 0);
+  expenseForm.paymentType = row.paymentType || "cash";
+  expenseForm.bankAccountId = row.bankAccountId || "";
+  expenseForm.note = row.note || "";
+  showExpenseModal.value = true;
+};
+
+const deleteExpense = async (row) => {
+  if (!window.confirm(`Delete expense "${row.partyName || "Expense"}"?`)) {
+    return;
+  }
+  await http.delete(`/expenses/${row.billId}`);
   await load();
 };
 
@@ -318,6 +364,7 @@ const resetFilters = async () => {
   filters.paymentType = "all";
   filters.type = "all";
   filters.search = "";
+  closeExpenseModal();
   await load();
 };
 

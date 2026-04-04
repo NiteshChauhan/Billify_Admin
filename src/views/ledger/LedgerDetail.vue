@@ -14,6 +14,12 @@
           <option value="bank">Bank</option>
           <option value="credit">Credit</option>
         </select>
+        <select v-if="type === 'bank'" v-model="bankAccountId" class="type" @change="load">
+          <option value="">All Banks</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }}
+          </option>
+        </select>
         <input type="date" v-model="from" />
         <span>to</span>
         <input type="date" v-model="to" />
@@ -70,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
@@ -82,6 +88,8 @@ const loaded = ref(false);
 const from = ref("");
 const to = ref("");
 const type = ref("all");
+const bankAccountId = ref("");
+const bankAccounts = ref([]);
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN") : "-");
@@ -100,13 +108,26 @@ const load = async () => {
     params.to = to.value;
   }
   if (type.value) params.type = type.value;
+  if (type.value === "bank" && bankAccountId.value) {
+    params.bankAccountId = bankAccountId.value;
+  }
   const res = await http.get(`/users/${route.params.userId}/ledger`, { params });
   party.value = res.data.user || res.data.party || {};
   ledger.value = res.data.ledger || [];
   loaded.value = true;
 };
 
-onMounted(load);
+watch(type, (value) => {
+  if (value !== "bank") {
+    bankAccountId.value = "";
+  }
+});
+
+onMounted(async () => {
+  const bankRes = await http.get("/bank-accounts");
+  bankAccounts.value = bankRes.data || [];
+  await load();
+});
 
 const totals = computed(() =>
   ledger.value.reduce(
@@ -130,6 +151,9 @@ const printLedger = () => {
     baseParams.to = to.value;
   }
   if (type.value) baseParams.type = type.value;
+  if (type.value === "bank" && bankAccountId.value) {
+    baseParams.bankAccountId = bankAccountId.value;
+  }
   const params = new URLSearchParams({ ...baseParams, token: localStorage.getItem("token") || "" });
   window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
 };

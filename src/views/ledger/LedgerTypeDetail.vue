@@ -6,6 +6,12 @@
         <div class="party">{{ title }}</div>
       </div>
       <div class="center">
+        <select v-if="type === 'bank'" v-model="bankAccountId" class="type" @change="load">
+          <option value="">All Banks</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }}
+          </option>
+        </select>
         <input type="date" v-model="from" />
         <span>to</span>
         <input type="date" v-model="to" />
@@ -58,7 +64,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
@@ -71,6 +77,8 @@ const closingBalance = ref(0);
 const loaded = ref(false);
 const from = ref("");
 const to = ref("");
+const bankAccountId = ref("");
+const bankAccounts = ref([]);
 
 const title = computed(() => {
   if (type.value === "cash") return "Cash Ledger";
@@ -101,6 +109,9 @@ const load = async () => {
     params.from = from.value;
     params.to = to.value;
   }
+  if (type.value === "bank" && bankAccountId.value) {
+    params.bankAccountId = bankAccountId.value;
+  }
 
   const res = await http.get("/reports/ledger-transactions", { params });
   ledger.value = res.data.ledger || [];
@@ -108,7 +119,17 @@ const load = async () => {
   loaded.value = true;
 };
 
-onMounted(load);
+watch(type, (value) => {
+  if (value !== "bank") {
+    bankAccountId.value = "";
+  }
+});
+
+onMounted(async () => {
+  const bankRes = await http.get("/bank-accounts");
+  bankAccounts.value = bankRes.data || [];
+  await load();
+});
 
 const printLedger = () => {
   // Reuse existing browser print; PDF export isn't implemented for cash/bank ledgers.
