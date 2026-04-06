@@ -36,6 +36,7 @@
           <option value="all">All</option>
           <option value="sale">Sale</option>
           <option value="purchase">Purchase</option>
+          <option value="payment">Payment</option>
         </select>
       </label>
 
@@ -73,19 +74,36 @@
             <td>{{ typeLabel(row.type) }}</td>
             <td>{{ row.partyName || "Cash" }}</td>
             <td class="capitalize">{{ row.paymentType }}</td>
-            <td>{{ row.type === "expense" ? (row.note || row.bankAccountName || "-") : (row.bankAccountName || "-") }}</td>
+            <td>{{ rowReference(row) }}</td>
             <td class="num">{{ money(row.amount) }}</td>
             <td>
               <router-link
-                v-if="row.type !== 'expense'"
+                v-if="row.type === 'sale' || row.type === 'purchase'"
                 class="btn ghost"
                 :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
               >
                 View
               </router-link>
+              <router-link
+                v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
+                class="btn ghost"
+                :to="`/sales/${row.billId}`"
+              >
+                View
+              </router-link>
+              <router-link
+                v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
+                class="btn ghost"
+                :to="`/purchase/${row.billId}`"
+              >
+                View
+              </router-link>
               <template v-else>
-                <button class="btn ghost" @click="editExpense(row)">Edit</button>
-                <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                <template v-if="row.type === 'expense'">
+                  <button class="btn ghost" @click="editExpense(row)">Edit</button>
+                  <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                </template>
+                <span v-else>-</span>
               </template>
             </td>
           </tr>
@@ -101,6 +119,14 @@
       <div class="summary-card">
         <span>Total Purchase</span>
         <strong>{{ money(summary.totalPurchase) }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Payment Received</span>
+        <strong>{{ money(summary.totalPaymentReceived) }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Payment Paid</span>
+        <strong>{{ money(summary.totalPaymentPaid) }}</strong>
       </div>
       <div class="summary-card">
         <span>Total Expenses</span>
@@ -206,6 +232,8 @@ const summary = ref({
   openingBalance: 0,
   totalSales: 0,
   totalPurchase: 0,
+  totalPaymentReceived: 0,
+  totalPaymentPaid: 0,
   totalExpenses: 0,
   closingBalance: 0,
 });
@@ -228,7 +256,16 @@ let searchTimer = null;
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString("en-IN") : "-");
-const typeLabel = (type) => ({ sale: "Sale", purchase: "Purchase", expense: "Expense" }[type] || type);
+const typeLabel = (type) => ({ sale: "Sale", purchase: "Purchase", payment: "Payment", expense: "Expense" }[type] || type);
+const rowReference = (row) => {
+  if (row.type === "expense") {
+    return row.note || row.bankAccountName || "-";
+  }
+  if (row.type === "payment") {
+    return row.referenceNo || (row.invoiceType === "OPENING" ? "Opening Balance" : row.bankAccountName || "-");
+  }
+  return row.bankAccountName || "-";
+};
 
 const headerDate = computed(() => {
   const date = new Date(filters.date);
@@ -260,6 +297,8 @@ const load = async () => {
     openingBalance: 0,
     totalSales: 0,
     totalPurchase: 0,
+    totalPaymentReceived: 0,
+    totalPaymentPaid: 0,
     totalExpenses: 0,
     closingBalance: 0,
   };
@@ -533,7 +572,7 @@ tbody tr:hover {
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
   gap: 14px;
   margin-top: 16px;
 }

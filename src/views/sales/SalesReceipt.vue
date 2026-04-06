@@ -7,11 +7,18 @@
       <div><strong>Invoice Total:</strong> Rs {{ invoice.totalAmount }}</div>
       <div><strong>Already Paid:</strong> Rs {{ invoice.paidAmount }}</div>
       <div><strong>Balance:</strong> Rs {{ balance }}</div>
+      <div><strong>Opening Balance:</strong> Rs {{ openingBalanceRemaining }}</div>
     </div>
 
     <div class="form">
+      <label>Adjust Payment To</label>
+      <div class="adjust-options">
+        <label><input type="radio" value="bill" v-model="adjustType" /> Bill Payment</label>
+        <label><input type="radio" value="opening" v-model="adjustType" :disabled="!canAdjustOpening" /> Opening Balance</label>
+      </div>
+
       <label>Receipt Amount</label>
-      <input type="number" v-model.number="amount" :max="balance" />
+      <input type="number" v-model.number="amount" :max="maxAmount" />
 
       <label>Payment Mode</label>
       <select v-model="paymentMode">
@@ -37,7 +44,7 @@
       <label>Remarks</label>
       <textarea v-model="remarks"></textarea>
 
-      <button :disabled="amount <= 0 || amount > balance" @click="save">Save Receipt</button>
+      <button :disabled="amount <= 0 || amount > maxAmount" @click="save">Save Receipt</button>
     </div>
   </div>
 </template>
@@ -57,8 +64,13 @@ const bankAccounts = ref([]);
 const amount = ref(0);
 const paymentMode = ref("CASH");
 const bankAccountId = ref("");
+const adjustType = ref("bill");
 const referenceNo = ref("");
 const remarks = ref("");
+
+const resolvedOpeningBalance = computed(() =>
+  Number((party.value.remainingOpeningBalance ?? party.value.openingBalance) ?? 0),
+);
 
 onMounted(async () => {
   const [invoiceRes, bankRes] = await Promise.all([http.get(`/sales/${route.params.id}`), http.get("/bank-accounts")]);
@@ -68,10 +80,19 @@ onMounted(async () => {
 });
 
 const balance = computed(() => (invoice.value.totalAmount || 0) - (invoice.value.paidAmount || 0));
+const canAdjustOpening = computed(() =>
+  resolvedOpeningBalance.value > 0 && String(party.value.openingType || "receivable") === "receivable",
+);
+const openingBalanceRemaining = computed(() => resolvedOpeningBalance.value);
+const maxAmount = computed(() => (adjustType.value === "opening" ? openingBalanceRemaining.value : balance.value));
 
 const save = async () => {
   if (paymentMode.value === "BANK" && !bankAccountId.value) {
     alert("Bank account is required for bank payment");
+    return;
+  }
+  if (adjustType.value === "opening" && !canAdjustOpening.value) {
+    alert("Opening balance is not available for adjustment");
     return;
   }
   await http.post("/payments", {
@@ -81,6 +102,7 @@ const save = async () => {
     amount: Number(amount.value),
     paymentMode: paymentMode.value,
     bankAccountId: paymentMode.value === "BANK" ? bankAccountId.value : null,
+    adjustType: adjustType.value,
     referenceNo: referenceNo.value,
     remarks: remarks.value,
   });
@@ -93,5 +115,6 @@ const save = async () => {
 .card { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
 .form label { display: block; margin-top: 12px; }
 input, select, textarea { width: 100%; padding: 8px; }
+.adjust-options { display: flex; gap: 16px; margin-top: 8px; }
 button { margin-top: 15px; }
 </style>

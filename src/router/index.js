@@ -59,6 +59,7 @@ const routes = [
       { path: "ledger", name: "ledger-list", component: () => import("@/views/ledger/LedgerList.vue") },
       { path: "ledger/type/:type", name: "ledger-type", component: () => import("@/views/ledger/LedgerTypeDetail.vue") },
       { path: "ledger/:userId", name: "ledger-detail", component: () => import("@/views/ledger/LedgerDetail.vue") },
+      { path: "payments", name: "payments", component: () => import("@/views/payments/Payments.vue") },
 
       { path: "reports/outstanding", component: () => import("@/views/reports/OutstandingReport.vue") },
       { path: "reports/ageing", component: () => import("@/views/reports/AgeingReport.vue") },

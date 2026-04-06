@@ -24,6 +24,10 @@
 
     <div class="grid single-row">
       <input type="number" v-model.number="form.openingBalance" placeholder="Opening Balance" />
+      <select v-model="form.openingType">
+        <option value="receivable">Receivable</option>
+        <option value="payable">Payable</option>
+      </select>
       <select v-model="form.isActive">
         <option :value="true">Active</option>
         <option :value="false">Inactive</option>
@@ -57,6 +61,7 @@ const form = reactive({
   address: "",
   gstNumber: "",
   openingBalance: 0,
+  openingType: "receivable",
   roles: [],
   isActive: true,
 });
@@ -69,6 +74,7 @@ const mapUserToForm = (user) => {
   form.address = user.address || "";
   form.gstNumber = user.gstNumber || "";
   form.openingBalance = Number(user.openingBalance ?? user.balance ?? 0);
+  form.openingType = user.openingType || "receivable";
   form.roles = getUserRoles(user).filter((r) => ["supplier", "customer", "vendor"].includes(r)).map((r) => (r === "vendor" ? "customer" : r));
   form.isActive = user.isActive !== false;
 };
@@ -96,6 +102,7 @@ const buildPayload = () => {
     gstNumber: form.gstNumber,
     roles,
     openingBalance: Number(form.openingBalance || 0),
+    openingType: form.openingType,
     isActive: Boolean(form.isActive),
   };
 };

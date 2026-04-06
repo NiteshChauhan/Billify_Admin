@@ -4,7 +4,7 @@
       <div>
         <h2>Product List</h2>
         <p class="subhead">
-          Fast product list with stock and latest rates in one request.
+          Product list with stock and latest rates in one request.
         </p>
       </div>
       <div class="head-actions">
@@ -29,6 +29,21 @@
       class="hidden-input"
       @change="handleCsvUpload"
     />
+
+    <div class="capital-cards">
+      <div class="capital-card">
+        <span>Total Products</span>
+        <strong>{{ capitalSummary.totalProducts }}</strong>
+      </div>
+      <div class="capital-card">
+        <span>Total Stock Qty</span>
+        <strong>{{ capitalSummary.totalStockQty }}</strong>
+      </div>
+      <div class="capital-card">
+        <span>Total Capital</span>
+        <strong>{{ money(capitalSummary.totalCapital) }}</strong>
+      </div>
+    </div>
 
     <p v-if="uploadMessage" class="upload-message">{{ uploadMessage }}</p>
 
@@ -325,6 +340,7 @@ const page = ref(1);
 const limit = ref(20);
 const total = ref(0);
 const totalPages = ref(1);
+const capitalSummary = ref({ totalProducts: 0, totalStockQty: 0, totalCapital: 0 });
 
 const showModal = ref(false);
 const editId = ref("");
@@ -418,17 +434,21 @@ const stopProgressSimulation = () => {
 };
 
 const load = async () => {
-  const res = await http.get("/products", {
-    params: {
-      page: page.value,
-      limit: limit.value,
-    },
-  });
+  const [res, capitalRes] = await Promise.all([
+    http.get("/products", {
+      params: {
+        page: page.value,
+        limit: limit.value,
+      },
+    }),
+    http.get("/products/capital-summary"),
+  ]);
 
   rows.value = res.data?.data || [];
   total.value = Number(res.data?.total || 0);
   page.value = Number(res.data?.page || 1);
   totalPages.value = Number(res.data?.totalPages || 1);
+  capitalSummary.value = capitalRes.data || { totalProducts: 0, totalStockQty: 0, totalCapital: 0 };
 };
 
 onMounted(load);
@@ -646,6 +666,24 @@ const save = async () => {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+.capital-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.capital-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+.capital-card span {
+  color: #64748b;
+  font-size: 13px;
 }
 .toolbar {
   display: flex;
@@ -977,6 +1015,9 @@ td {
   .pagination-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .capital-cards {
+    grid-template-columns: 1fr;
   }
   .summary-cards {
     grid-template-columns: 1fr;
