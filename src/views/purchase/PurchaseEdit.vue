@@ -214,7 +214,7 @@ const onProductChange = async (item) => {
       })
     : { data: { lastRate: null } };
   item.lastRate = lastRateRes.data?.lastRate ?? null;
-  item.rate = item.lastRate ?? product?.lastPurchaseRate || 0;
+  item.rate = (item.lastRate ?? product?.lastPurchaseRate) || 0;
   item.quantity = 1;
 };
 
