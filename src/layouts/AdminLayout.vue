@@ -131,6 +131,11 @@ const navItems = [
     icon: "M5 5h14v14H5zM9 9h6M9 13h6",
   },
   {
+    label: "Loans",
+    path: "/loans",
+    icon: "M4 7h16M7 4v16M17 8c0-1.657-2.239-3-5-3s-5 1.343-5 3s1.567 2.42 5 3c3.433.58 5 1.343 5 3s-2.239 3-5 3s-5-1.343-5-3",
+  },
+  {
     label: "Payments",
     path: "/payments",
     icon: "M4 7h16M4 12h8M4 17h12",

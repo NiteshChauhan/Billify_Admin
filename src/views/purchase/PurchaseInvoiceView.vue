@@ -9,19 +9,16 @@
       </div>
     </div>
 
-    <!-- COMPANY -->
     <div class="block">
       <strong>{{ company.name }}</strong><br />
       {{ company.address }}
     </div>
 
-    <!-- SUPPLIER -->
     <div class="block">
       <strong>Supplier:</strong> {{ supplier.name }}<br />
       {{ supplier.phone }}
     </div>
 
-    <!-- ITEMS -->
     <table>
       <thead>
         <tr>
@@ -36,18 +33,17 @@
         <tr v-for="i in invoice.items" :key="i._id">
           <td>{{ i.productId?.name }}</td>
           <td>{{ i.quantity }}</td>
-          <td>₹ {{ i.rate }}</td>
-          <td>₹ {{ i.amount }}</td>
+          <td>{{ money(i.rate) }}</td>
+          <td>{{ money(i.amount) }}</td>
         </tr>
       </tbody>
     </table>
 
-    <!-- TOTALS -->
     <div class="totals">
-      <div>Subtotal: ₹ {{ invoice.subtotal }}</div>
-      <div>Tax: ₹ {{ invoice.tax }}</div>
-      <div><strong>Total: ₹ {{ invoice.totalAmount }}</strong></div>
-      <div>Paid: ₹ {{ invoice.paidAmount }}</div>
+      <div>Subtotal: {{ money(invoice.subtotal) }}</div>
+      <div>Tax: {{ money(invoice.tax) }}</div>
+      <div><strong>Total: {{ money(invoice.totalAmount) }}</strong></div>
+      <div>Paid: {{ money(invoice.paidAmount) }}</div>
       <div>Status: {{ invoice.status }}</div>
     </div>
   </div>
@@ -57,8 +53,10 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
+const { formatCurrency: money } = useCurrency();
 
 const invoice = ref({});
 const company = ref({});
@@ -74,7 +72,7 @@ onMounted(async () => {
 const openPDF = () => {
   window.open(
     `${import.meta.env.VITE_API_URL}/invoice/purchase/${route.params.id}`,
-    "_blank"
+    "_blank",
   );
 };
 </script>

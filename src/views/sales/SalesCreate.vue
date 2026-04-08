@@ -50,11 +50,11 @@
           <td><input type="number" v-model.number="i.quantity" /></td>
           <td>
             <input type="number" v-model.number="i.rate" />
-            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
+            <small v-if="i.lastRate !== null" class="hint">Last rate: {{ money(i.lastRate) }}</small>
           </td>
-          <td>₹ {{ i.quantity * i.rate || 0 }}</td>
+          <td>{{ money(i.quantity * i.rate || 0) }}</td>
           <td>
-            <button @click="remove(idx)">❌</button>
+            <button @click="remove(idx)">X</button>
           </td>
         </tr>
       </tbody>
@@ -68,7 +68,7 @@
     <label>Paid Amount (optional)</label>
     <input type="number" v-model.number="paidAmount" :disabled="paymentType !== 'credit'" />
 
-    <div class="total">Total: ₹ {{ total }}</div>
+    <div class="total">Total: {{ money(total) }}</div>
 
     <button class="save" @click="save">Save Invoice</button>
   </div>
@@ -81,8 +81,10 @@ import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
+import { useCurrency } from "@/composables/useCurrency";
 
 const router = useRouter();
+const { formatCurrency: money } = useCurrency();
 
 const users = ref([]);
 const products = ref([]);
@@ -193,10 +195,18 @@ select {
   font-size: 12px;
 }
 
+.total {
+  margin-top: 15px;
+  font-size: 18px;
+}
+
 .save {
-  background: #16a34a;
+  background: #2563eb;
   color: white;
   padding: 10px;
-  margin-top: 10px;
+  margin-top: 15px;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
 }
 </style>

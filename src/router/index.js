@@ -67,6 +67,7 @@ const routes = [
       { path: "reports/daily", component: () => import("@/views/reports/DailyReport.vue") },
       { path: "reports/profit", component: () => import("@/views/dashboard/ProfitDashboard.vue") },
       { path: "expenses", name: "expenses", component: () => import("@/views/expenses/Expenses.vue") },
+      { path: "loans", name: "loans", component: () => import("@/views/loans/Loans.vue") },
       { path: "settings", name: "settings", component: () => import("@/views/settings/Settings.vue") },
     ],
   },

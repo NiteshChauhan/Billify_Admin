@@ -37,6 +37,7 @@
           <option value="sale">Sale</option>
           <option value="purchase">Purchase</option>
           <option value="payment">Payment</option>
+          <option value="loan">Loan</option>
         </select>
       </label>
 
@@ -104,6 +105,13 @@
                   <button class="btn ghost" @click="editExpense(row)">Edit</button>
                   <button class="btn danger" @click="deleteExpense(row)">Delete</button>
                 </template>
+                <router-link
+                  v-else-if="row.type === 'loan'"
+                  class="btn ghost"
+                  to="/loans"
+                >
+                  View
+                </router-link>
                 <span v-else>-</span>
               </template>
             </td>
@@ -132,6 +140,14 @@
       <div class="summary-card">
         <span>Total Expenses</span>
         <strong>{{ money(summary.totalExpenses) }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Loan In</span>
+        <strong>{{ money(summary.totalLoanIn) }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Loan Out</span>
+        <strong>{{ money(summary.totalLoanOut) }}</strong>
       </div>
       <div class="summary-card">
         <span>Closing Balance</span>
@@ -282,6 +298,8 @@ const summary = ref({
   totalPaymentReceived: 0,
   totalPaymentPaid: 0,
   totalExpenses: 0,
+  totalLoanIn: 0,
+  totalLoanOut: 0,
   closingBalance: 0,
 });
 const expenseForm = reactive({
@@ -311,10 +329,16 @@ const typeLabel = (row) => {
   if (row.type === "payment") {
     return row.paymentDirection === "paid" ? "Payment Paid" : "Payment Received";
   }
+  if (row.type === "loan") {
+    return row.loanType === "loan_out" ? "Loan Out" : "Loan In";
+  }
   return ({ sale: "Sale", purchase: "Purchase", payment: "Payment", expense: "Expense" }[row.type] || row.type);
 };
 const rowReference = (row) => {
   if (row.type === "expense") {
+    return row.note || row.bankAccountName || "-";
+  }
+  if (row.type === "loan") {
     return row.note || row.bankAccountName || "-";
   }
   if (row.type === "payment") {
@@ -356,6 +380,8 @@ const load = async () => {
     totalPaymentReceived: 0,
     totalPaymentPaid: 0,
     totalExpenses: 0,
+    totalLoanIn: 0,
+    totalLoanOut: 0,
     closingBalance: 0,
   };
   openingBalanceInput.value = Number(summary.value.openingBalance || 0);

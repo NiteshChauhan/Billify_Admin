@@ -2,7 +2,6 @@
   <div class="report-card">
     <h2>Outstanding Report</h2>
 
-    <!-- Tabs -->
     <div class="tabs">
       <button
         :class="{ active: tab === 'SUPPLIER' }"
@@ -19,7 +18,6 @@
       </button>
     </div>
 
-    <!-- Table -->
     <table v-if="rows.length">
       <thead>
         <tr>
@@ -34,20 +32,16 @@
       <tbody>
         <tr v-for="r in rows" :key="r._id">
           <td>{{ r.name }}</td>
-
-          <td>₹ {{ r.total }}</td>
-
-          <td>₹ {{ r.paid }}</td>
-
+          <td>{{ money(r.total) }}</td>
+          <td>{{ money(r.paid) }}</td>
           <td
             :class="{
               due: r.outstanding > 0,
               clear: r.outstanding === 0,
             }"
           >
-            ₹ {{ r.outstanding }}
+            {{ money(r.outstanding) }}
           </td>
-
           <td>
             <router-link :to="`/users/${r._id}/ledger`">
               View Ledger
@@ -59,9 +53,9 @@
       <tfoot>
         <tr>
           <th>Total</th>
-          <th>₹ {{ totals.total }}</th>
-          <th>₹ {{ totals.paid }}</th>
-          <th>₹ {{ totals.outstanding }}</th>
+          <th>{{ money(totals.total) }}</th>
+          <th>{{ money(totals.paid) }}</th>
+          <th>{{ money(totals.outstanding) }}</th>
           <th></th>
         </tr>
       </tfoot>
@@ -75,9 +69,11 @@
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const tab = ref("SUPPLIER");
 const data = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const switchTab = async (t) => {
   tab.value = t;

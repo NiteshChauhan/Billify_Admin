@@ -2,7 +2,6 @@
   <div class="invoice-card" v-if="loaded">
     <h2 class="title">Edit Purchase Invoice</h2>
 
-    <!-- HEADER -->
     <div class="header-grid">
       <div>
         <label>Bill Number</label>
@@ -43,7 +42,6 @@
       </div>
     </div>
 
-    <!-- ITEMS -->
     <table class="items">
       <thead>
         <tr>
@@ -60,19 +58,19 @@
         <tr v-for="(i, index) in form.items" :key="index">
           <td>
             <select v-model="i.productId" @change="onProductChange(i)">
-                <option value="">Select</option>
-                <option
-                    v-for="p in products"
-                    :key="p._id"
-                    :value="String(p._id)"
-                >
-                    {{ p.name }}
-                </option>
+              <option value="">Select</option>
+              <option
+                v-for="p in products"
+                :key="p._id"
+                :value="String(p._id)"
+              >
+                {{ p.name }}
+              </option>
             </select>
           </td>
 
           <td class="num">
-            {{ i.availableStock ?? "-" }}
+            {{ i.availableStock ?? '-' }}
           </td>
 
           <td>
@@ -81,15 +79,15 @@
 
           <td>
             <input type="number" min="0" v-model.number="i.rate" />
-            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
+            <small v-if="i.lastRate !== null" class="hint">Last rate: {{ money(i.lastRate) }}</small>
           </td>
 
           <td class="num">
-            {{ i.quantity * i.rate || 0 }}
+            {{ money(i.quantity * i.rate || 0) }}
           </td>
 
           <td>
-            <button class="remove" @click="removeItem(index)">×</button>
+            <button class="remove" @click="removeItem(index)">X</button>
           </td>
         </tr>
       </tbody>
@@ -97,16 +95,15 @@
 
     <button class="add" @click="addItem">+ Add Item</button>
 
-    <!-- TOTALS -->
     <div class="totals">
-      <div>Subtotal: ₹ {{ subtotal }}</div>
+      <div>Subtotal: {{ money(subtotal) }}</div>
 
       <div>
         Tax:
         <input type="number" v-model.number="form.tax" />
       </div>
 
-      <div><strong>Total: ₹ {{ total }}</strong></div>
+      <div><strong>Total: {{ money(total) }}</strong></div>
 
       <div>
         Paid:
@@ -131,13 +128,15 @@ import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
+import { useCurrency } from "@/composables/useCurrency";
 import {
   getPurchaseByIdApi,
-  updatePurchaseApi
+  updatePurchaseApi,
 } from "@/api/purchaseApi";
 
 const router = useRouter();
 const route = useRoute();
+const { formatCurrency: money } = useCurrency();
 
 const users = ref([]);
 const products = ref([]);
@@ -152,7 +151,7 @@ const form = reactive({
   paymentType: "credit",
   bankAccountId: "",
   tax: 0,
-  paidAmount: 0
+  paidAmount: 0,
 });
 
 function createItem() {
@@ -168,18 +167,15 @@ function createItem() {
 onMounted(async () => {
   const id = route.params.id;
 
-  // Load dropdown data
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
   bankAccounts.value = (await http.get("/bank-accounts")).data || [];
 
-  // Load purchase data
   const res = await getPurchaseByIdApi(id);
   const data = res.data;
 
-  // ✅ Convert supplierId to string
   form.supplierId = String(
-    data.partyId?._id || data.supplierId?._id || data.partyId || data.supplierId || ""
+    data.partyId?._id || data.supplierId?._id || data.partyId || data.supplierId || "",
   );
 
   form.invoiceDate = data.invoiceDate?.substring(0, 10);
@@ -189,11 +185,8 @@ onMounted(async () => {
   form.paymentType = (data.paymentType || "credit").toString().toLowerCase();
   form.bankAccountId = data.bankAccountId?._id || data.bankAccountId || "";
 
-  // ✅ Normalize items
-  form.items = data.items.map(item => ({
-    productId: String(
-      item.productId?._id || item.productId || ""
-    ),
+  form.items = data.items.map((item) => ({
+    productId: String(item.productId?._id || item.productId || ""),
     quantity: item.quantity,
     rate: item.rate,
     availableStock: null,
@@ -207,31 +200,29 @@ const supplierUsers = computed(() =>
   users.value.filter((user) => hasUserRole(user, "supplier")),
 );
 
-/* 🔄 Product change */
 const onProductChange = async (item) => {
   if (!item.productId) return;
 
-  const product = products.value.find(p => p._id === item.productId);
+  const product = products.value.find((p) => p._id === item.productId);
 
   const stockRes = await http.get(`/stock/${item.productId}`);
   item.availableStock = stockRes.data.stock;
 
-  const lastRateRes =
-    form.supplierId
-      ? await http.get(`/products/${item.productId}/last-rate`, {
-          params: { partyId: form.supplierId, type: "purchase" },
-        })
-      : { data: { lastRate: null } };
+  const lastRateRes = form.supplierId
+    ? await http.get(`/products/${item.productId}/last-rate`, {
+        params: { partyId: form.supplierId, type: "purchase" },
+      })
+    : { data: { lastRate: null } };
   item.lastRate = lastRateRes.data?.lastRate ?? null;
-  item.rate = item.lastRate ?? (product?.lastPurchaseRate || 0);
+  item.rate = item.lastRate ?? product?.lastPurchaseRate || 0;
   item.quantity = 1;
 };
 
 const addItem = () => form.items.push(createItem());
-const removeItem = i => form.items.splice(i, 1);
+const removeItem = (i) => form.items.splice(i, 1);
 
 const subtotal = computed(() =>
-  form.items.reduce((t, i) => t + i.quantity * i.rate, 0)
+  form.items.reduce((t, i) => t + i.quantity * i.rate, 0),
 );
 
 const total = computed(() => subtotal.value + form.tax);
@@ -277,8 +268,7 @@ const update = async () => {
     bankAccountId: form.paymentType === "bank" ? form.bankAccountId : null,
     items: payloadItems,
     tax: Number(form.tax || 0),
-    paidAmount:
-      form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
+    paidAmount: form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
     partyId: form.supplierId || null,
   });
   router.push("/purchase");

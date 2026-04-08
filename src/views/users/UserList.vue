@@ -25,7 +25,7 @@
           <td>{{ u.name }}</td>
           <td>{{ u.phone }}</td>
           <td>{{ formatType(u) }}</td>
-          <td>Rs {{ u.balance ?? u.openingBalance ?? 0 }}</td>
+          <td>{{ money(u.balance ?? u.openingBalance ?? 0) }}</td>
           <td class="actions">
             <router-link :to="`/users/${u._id}/ledger`">View</router-link>
             <router-link :to="`/users/edit/${u._id}`">Edit</router-link>
@@ -40,8 +40,10 @@
 import { ref, onMounted } from "vue";
 import { getUsersApi } from "@/api/userApi";
 import { getUserRoles } from "@/utils/userRole";
+import { useCurrency } from "@/composables/useCurrency";
 
 const users = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   users.value = (await getUsersApi()).data;

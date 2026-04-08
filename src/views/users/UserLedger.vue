@@ -4,8 +4,8 @@
 
     <div class="header">
       <div><strong>Name:</strong> {{ user.name }}</div>
-      <div><strong>Opening Balance:</strong> Rs {{ user.openingBalance ?? 0 }}</div>
-      <div><strong>Closing Balance:</strong> Rs {{ closingBalance }}</div>
+      <div><strong>Opening Balance:</strong> {{ money(user.openingBalance ?? 0) }}</div>
+      <div><strong>Closing Balance:</strong> {{ money(closingBalance) }}</div>
     </div>
 
     <div class="toolbar">
@@ -29,9 +29,9 @@
           <td>{{ formatDate(l.date) }}</td>
           <td>{{ l.bill_no || l.billNumber || '-' }}</td>
           <td>{{ l.type }}</td>
-          <td class="debit">{{ l.debit ? l.debit : '-' }}</td>
-          <td class="credit">{{ l.credit ? l.credit : '-' }}</td>
-          <td>{{ l.balance }}</td>
+          <td class="debit">{{ l.debit ? money(l.debit) : '-' }}</td>
+          <td class="credit">{{ l.credit ? money(l.credit) : '-' }}</td>
+          <td>{{ money(l.balance) }}</td>
           <td>
             <router-link v-if="l.billType === 'PURCHASE'" :to="`/purchase/${l.billId}`">View</router-link>
             <router-link v-else-if="l.billType === 'SALE'" :to="`/sales/${l.billId}`">View</router-link>
@@ -53,8 +53,10 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
+const { formatCurrency: money } = useCurrency();
 const user = ref({ name: "", openingBalance: 0 });
 const ledger = ref([]);
 const closingBalance = ref(0);

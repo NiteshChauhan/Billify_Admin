@@ -11,8 +11,8 @@
       <p>Opening stock already added</p>
       <div class="summary">
         <div><strong>Quantity:</strong> {{ existing.quantity }}</div>
-        <div><strong>Rate:</strong> Rs {{ existing.rate }}</div>
-        <div><strong>Total:</strong> Rs {{ existing.amount }}</div>
+        <div><strong>Rate:</strong> {{ money(existing.rate) }}</div>
+        <div><strong>Total:</strong> {{ money(existing.amount) }}</div>
       </div>
       <button v-if="existing.editable" class="btn-primary" @click="editMode = true">
         Edit Opening Stock
@@ -26,11 +26,11 @@
     <form v-else @submit.prevent="submit">
       <div class="form-group">
         <label>Quantity *</label>
-        <input type="number" v-model.number="form.quantity" required min="0.01" step="0.01" />
+        <input type="number" v-model.number="form.quantity" required min="0.01" :step="decimalStep" />
       </div>
       <div class="form-group">
         <label>Rate</label>
-        <input type="number" v-model.number="form.rate" min="0" step="0.01" />
+        <input type="number" v-model.number="form.rate" min="0" :step="decimalStep" />
       </div>
       <div class="form-group readonly">
         <label>Total</label>
@@ -47,6 +47,7 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const router = useRouter();
@@ -59,8 +60,10 @@ const editMode = ref(false);
 const form = reactive({ quantity: 0, rate: 0 });
 const message = ref("");
 const type = ref("");
+const { formatCurrency: money, roundCurrency, currencyDecimals } = useCurrency();
 
-const total = computed(() => (form.quantity * form.rate).toFixed(2));
+const total = computed(() => money(roundCurrency(form.quantity * form.rate)));
+const decimalStep = computed(() => (Number(currencyDecimals.value || 2) >= 3 ? "0.001" : "0.01"));
 
 onMounted(async () => {
   try {

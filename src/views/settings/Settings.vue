@@ -42,13 +42,17 @@
         </label>
         <label class="field">
           <span>Currency</span>
-          <select v-model="companyForm.currencySymbol">
+          <select v-model="companyForm.currencySymbol" @change="handleCurrencyChange">
             <option value="Rs">Rs</option>
             <option value="$">$</option>
             <option value="KWD">KWD</option>
             <option value="AED">AED</option>
             <option value="EUR">EUR</option>
           </select>
+        </label>
+        <label class="field">
+          <span>Currency Decimals</span>
+          <input v-model.number="companyForm.currencyDecimals" type="number" min="0" max="6" />
         </label>
         <label class="field full">
           <span>Address</span>
@@ -186,7 +190,7 @@ const openingMessage = ref("");
 const passwordMessage = ref("");
 const bankAccounts = ref([]);
 const showBankModal = ref(false);
-const { formatCurrency: money, setCurrencySymbol } = useCurrency();
+const { formatCurrency: money, setCurrency, currencyConfig } = useCurrency();
 
 const companyForm = reactive({
   name: "",
@@ -195,7 +199,12 @@ const companyForm = reactive({
   address: "",
   gstNumber: "",
   currencySymbol: "Rs",
+  currencyDecimals: 2,
 });
+
+const handleCurrencyChange = () => {
+  companyForm.currencyDecimals = currencyConfig[companyForm.currencySymbol] ?? 2;
+};
 
 const openingForm = reactive({
   date: today,
@@ -223,7 +232,11 @@ const loadCompany = async () => {
   companyForm.address = data.address || "";
   companyForm.gstNumber = data.gstNumber || "";
   companyForm.currencySymbol = data.currencySymbol || "Rs";
-  setCurrencySymbol(companyForm.currencySymbol);
+  companyForm.currencyDecimals = Number(data.currencyDecimals ?? currencyConfig[companyForm.currencySymbol] ?? 2);
+  setCurrency({
+    symbol: companyForm.currencySymbol,
+    decimals: companyForm.currencyDecimals,
+  });
 };
 
 const loadBankAccounts = async () => {
@@ -244,7 +257,10 @@ const saveCompany = async () => {
     return;
   }
   await http.post("/settings/company", { ...companyForm });
-  setCurrencySymbol(companyForm.currencySymbol);
+  setCurrency({
+    symbol: companyForm.currencySymbol,
+    decimals: companyForm.currencyDecimals,
+  });
   companyMessage.value = "Company profile saved";
 };
 

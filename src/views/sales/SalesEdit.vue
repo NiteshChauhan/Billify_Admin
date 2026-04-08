@@ -2,7 +2,6 @@
   <div class="card" v-if="loaded">
     <h2>Edit Sales Invoice</h2>
 
-    <!-- CUSTOMER -->
     <label>Customer</label>
     <UserSelect
       v-model="vendorId"
@@ -27,7 +26,6 @@
       </select>
     </template>
 
-    <!-- ITEMS -->
     <table>
       <thead>
         <tr>
@@ -60,13 +58,13 @@
 
           <td>
             <input type="number" v-model.number="i.rate" min="0" />
-            <small v-if="i.lastRate !== null" class="hint">Last rate: ₹ {{ i.lastRate }}</small>
+            <small v-if="i.lastRate !== null" class="hint">Last rate: {{ money(i.lastRate) }}</small>
           </td>
 
-          <td>₹ {{ i.quantity * i.rate || 0 }}</td>
+          <td>{{ money(i.quantity * i.rate || 0) }}</td>
 
           <td>
-            <button @click="remove(idx)">❌</button>
+            <button @click="remove(idx)">X</button>
           </td>
         </tr>
       </tbody>
@@ -74,16 +72,14 @@
 
     <button @click="add">+ Add Item</button>
 
-    <!-- TAX -->
     <label>Tax</label>
     <input type="number" v-model.number="tax" />
 
-    <!-- PAID -->
     <label>Paid Amount</label>
     <input type="number" v-model.number="paidAmount" :disabled="paymentType !== 'credit'" />
 
     <div class="total">
-      <strong>Total: ₹ {{ total }}</strong>
+      <strong>Total: {{ money(total) }}</strong>
     </div>
 
     <button class="save" @click="update">
@@ -103,13 +99,15 @@ import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
+import { useCurrency } from "@/composables/useCurrency";
 import {
   getSalesByIdApi,
-  updateSalesApi
+  updateSalesApi,
 } from "@/api/salesApi";
 
 const router = useRouter();
 const route = useRoute();
+const { formatCurrency: money } = useCurrency();
 
 const users = ref([]);
 const products = ref([]);
@@ -127,18 +125,15 @@ const loaded = ref(false);
 onMounted(async () => {
   const id = route.params.id;
 
-  // Load dropdown data
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
   bankAccounts.value = (await http.get("/bank-accounts")).data || [];
 
-  // Load invoice data
   const res = await getSalesByIdApi(id);
   const data = res.data;
 
-  // ✅ Normalize vendorId
   vendorId.value = String(
-    data.partyId?._id || data.vendorId?._id || data.partyId || data.vendorId || ""
+    data.partyId?._id || data.vendorId?._id || data.partyId || data.vendorId || "",
   );
 
   tax.value = data.tax || 0;
@@ -146,11 +141,8 @@ onMounted(async () => {
   paymentType.value = (data.paymentType || "credit").toString().toLowerCase();
   bankAccountId.value = data.bankAccountId?._id || data.bankAccountId || "";
 
-  // ✅ Normalize items
   items.value = data.items.map((i) => ({
-    productId: String(
-      i.productId?._id || i.productId || ""
-    ),
+    productId: String(i.productId?._id || i.productId || ""),
     quantity: i.quantity,
     rate: i.rate,
     lastRate: null,
@@ -183,15 +175,10 @@ const onProductChange = async (item) => {
   }
 };
 
-const remove = (i) =>
-  items.value.splice(i, 1);
+const remove = (i) => items.value.splice(i, 1);
 
 const total = computed(
-  () =>
-    items.value.reduce(
-      (t, i) => t + i.quantity * i.rate,
-      0
-    ) + tax.value
+  () => items.value.reduce((t, i) => t + i.quantity * i.rate, 0) + tax.value,
 );
 
 const update = async () => {
@@ -230,7 +217,7 @@ const update = async () => {
     bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
     items: payloadItems,
     tax: tax.value,
-    paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value
+    paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
   });
 
   router.push("/sales");

@@ -16,10 +16,10 @@
       <tbody>
         <tr v-for="s in report" :key="s.userId">
           <td>{{ s.userName }}</td>
-          <td class="num">Rs {{ s.total }}</td>
-          <td class="num">Rs {{ s.paid }}</td>
+          <td class="num">{{ money(s.total) }}</td>
+          <td class="num">{{ money(s.paid) }}</td>
           <td class="num" :class="{ danger: s.outstanding > 0 }">
-            Rs {{ s.outstanding }}
+            {{ money(s.outstanding) }}
           </td>
           <td>
             <router-link :to="`/users/${s.userId}/ledger`" class="link">
@@ -32,9 +32,9 @@
       <tfoot>
         <tr>
           <th>Total</th>
-          <th class="num">Rs {{ totalPurchase }}</th>
-          <th class="num">Rs {{ totalPaid }}</th>
-          <th class="num">Rs {{ totalOutstanding }}</th>
+          <th class="num">{{ money(totalPurchase) }}</th>
+          <th class="num">{{ money(totalPaid) }}</th>
+          <th class="num">{{ money(totalOutstanding) }}</th>
           <th></th>
         </tr>
       </tfoot>
@@ -46,8 +46,10 @@
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const report = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   report.value = (await http.get("/reports/outstanding", {

@@ -22,8 +22,8 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>0–30 Days</th>
-          <th>31–60 Days</th>
+          <th>0-30 Days</th>
+          <th>31-60 Days</th>
           <th>61+ Days</th>
           <th>Total</th>
         </tr>
@@ -32,20 +32,20 @@
       <tbody>
         <tr v-for="r in rows" :key="r.id">
           <td>{{ r.name }}</td>
-          <td>₹ {{ r["0_30"] }}</td>
-          <td>₹ {{ r["31_60"] }}</td>
-          <td>₹ {{ r["61_plus"] }}</td>
-          <td class="total">₹ {{ r.total }}</td>
+          <td>{{ money(r['0_30']) }}</td>
+          <td>{{ money(r['31_60']) }}</td>
+          <td>{{ money(r['61_plus']) }}</td>
+          <td class="total">{{ money(r.total) }}</td>
         </tr>
       </tbody>
 
       <tfoot>
         <tr>
           <th>Total</th>
-          <th>₹ {{ totals["0_30"] }}</th>
-          <th>₹ {{ totals["31_60"] }}</th>
-          <th>₹ {{ totals["61_plus"] }}</th>
-          <th>₹ {{ totals.total }}</th>
+          <th>{{ money(totals['0_30']) }}</th>
+          <th>{{ money(totals['31_60']) }}</th>
+          <th>{{ money(totals['61_plus']) }}</th>
+          <th>{{ money(totals.total) }}</th>
         </tr>
       </tfoot>
     </table>
@@ -58,9 +58,11 @@
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const tab = ref("SUPPLIER");
 const data = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const switchTab = async (t) => {
   tab.value = t;
@@ -89,13 +91,13 @@ const rows = computed(() => data.value);
 const totals = computed(() =>
   data.value.reduce(
     (t, r) => {
-      t["0_30"] += r["0_30"];
-      t["31_60"] += r["31_60"];
-      t["61_plus"] += r["61_plus"];
+      t['0_30'] += r['0_30'];
+      t['31_60'] += r['31_60'];
+      t['61_plus'] += r['61_plus'];
       t.total += r.total;
       return t;
     },
-    { "0_30": 0, "31_60": 0, "61_plus": 0, total: 0 },
+    { '0_30': 0, '31_60': 0, '61_plus': 0, total: 0 },
   ),
 );
 </script>
