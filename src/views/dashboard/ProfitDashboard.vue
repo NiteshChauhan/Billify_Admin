@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from "vue";
 import http from "@/api/http";
 import ProfitCard from "@/components/ProfitCard.vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const range = ref("week");
 const fromDate = ref("");
@@ -10,6 +11,7 @@ const toDate = ref("");
 const loading = ref(false);
 const profitData = ref({ sales: 0, cost: 0, profit: 0 });
 const rows = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const fetchReport = async () => {
   loading.value = true;
@@ -30,7 +32,6 @@ const fetchReport = async () => {
 };
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
-const money = (n) => Number(n || 0).toFixed(2);
 
 watch([range, fromDate, toDate], fetchReport);
 onMounted(fetchReport);

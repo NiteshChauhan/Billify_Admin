@@ -44,12 +44,13 @@ import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
-const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
+const { formatCurrency: money } = useCurrency();
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
 const load = async () => {

@@ -40,6 +40,16 @@
           <span>GST</span>
           <input v-model.trim="companyForm.gstNumber" type="text" />
         </label>
+        <label class="field">
+          <span>Currency</span>
+          <select v-model="companyForm.currencySymbol">
+            <option value="Rs">Rs</option>
+            <option value="$">$</option>
+            <option value="KWD">KWD</option>
+            <option value="AED">AED</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </label>
         <label class="field full">
           <span>Address</span>
           <textarea v-model.trim="companyForm.address" rows="4" />
@@ -158,6 +168,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -175,6 +186,7 @@ const openingMessage = ref("");
 const passwordMessage = ref("");
 const bankAccounts = ref([]);
 const showBankModal = ref(false);
+const { formatCurrency: money, setCurrencySymbol } = useCurrency();
 
 const companyForm = reactive({
   name: "",
@@ -182,6 +194,7 @@ const companyForm = reactive({
   email: "",
   address: "",
   gstNumber: "",
+  currencySymbol: "Rs",
 });
 
 const openingForm = reactive({
@@ -202,8 +215,6 @@ const bankForm = reactive({
   balance: 0,
 });
 
-const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
-
 const loadCompany = async () => {
   const { data } = await http.get("/settings/company");
   companyForm.name = data.name || "";
@@ -211,6 +222,8 @@ const loadCompany = async () => {
   companyForm.email = data.email || "";
   companyForm.address = data.address || "";
   companyForm.gstNumber = data.gstNumber || "";
+  companyForm.currencySymbol = data.currencySymbol || "Rs";
+  setCurrencySymbol(companyForm.currencySymbol);
 };
 
 const loadBankAccounts = async () => {
@@ -231,6 +244,7 @@ const saveCompany = async () => {
     return;
   }
   await http.post("/settings/company", { ...companyForm });
+  setCurrencySymbol(companyForm.currencySymbol);
   companyMessage.value = "Company profile saved";
 };
 

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="invoice">
     <h2>Purchase Invoice</h2>
 
@@ -21,17 +21,17 @@
         <tr v-for="i in data.items" :key="i._id">
           <td style="text-align: left">{{ i.productId?.name }}</td>
           <td>{{ i.quantity }}</td>
-          <td>Rs {{ i.rate }}</td>
-          <td>Rs {{ i.amount }}</td>
+          <td>{{ money(i.rate) }}</td>
+          <td>{{ money(i.amount) }}</td>
         </tr>
       </tbody>
     </table>
 
     <div class="totals">
-      <div>Subtotal: Rs {{ data.subtotal }}</div>
-      <div>Tax: Rs {{ data.tax }}</div>
-      <div><strong>Total: Rs {{ data.totalAmount }}</strong></div>
-      <div>Paid: Rs {{ data.paidAmount }}</div>
+      <div>Subtotal: {{ money(data.subtotal) }}</div>
+      <div>Tax: {{ money(data.tax) }}</div>
+      <div><strong>Total: {{ money(data.totalAmount) }}</strong></div>
+      <div>Paid: {{ money(data.paidAmount) }}</div>
     </div>
 
     <div class="payments" v-if="payments.length">
@@ -51,7 +51,7 @@
             <td>{{ formatDate(p.paymentDate) }}</td>
             <td>{{ p.paymentMode }}</td>
             <td>{{ p.referenceNo || "-" }}</td>
-            <td>Rs {{ p.amount }}</td>
+            <td>{{ money(p.amount) }}</td>
             <td>
               <router-link :to="`/purchase/${data._id}`">View Bill</router-link>
               |
@@ -77,7 +77,7 @@
           <tr v-for="r in returns" :key="r._id">
             <td>{{ r.returnNo || "-" }}</td>
             <td>{{ formatDate(r.returnDate) }}</td>
-            <td>Rs {{ r.totalAmount }}</td>
+            <td>{{ money(r.totalAmount) }}</td>
             <td>
               <router-link :to="`/purchase-return?billId=${data._id}`">View</router-link>
             </td>
@@ -99,12 +99,14 @@ import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { useAuthStore } from "@/stores/authStore";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
 const returns = ref([]);
+const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   data.value = (await http.get(`/purchase/${route.params.id}`)).data;

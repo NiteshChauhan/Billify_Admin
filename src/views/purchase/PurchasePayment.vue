@@ -3,10 +3,10 @@
     <h2>Purchase Payment</h2>
     <div class="info">
       <div><strong>Supplier:</strong> {{ party.name }}</div>
-      <div><strong>Invoice Total:</strong> Rs {{ invoice.totalAmount }}</div>
-      <div><strong>Paid:</strong> Rs {{ invoice.paidAmount }}</div>
-      <div><strong>Balance:</strong> Rs {{ balance }}</div>
-      <div><strong>Opening Balance:</strong> Rs {{ openingBalanceRemaining }}</div>
+      <div><strong>Invoice Total:</strong> {{ money(invoice.totalAmount) }}</div>
+      <div><strong>Paid:</strong> {{ money(invoice.paidAmount) }}</div>
+      <div><strong>Balance:</strong> {{ money(balance) }}</div>
+      <div><strong>Opening Balance:</strong> {{ money(openingBalanceRemaining) }}</div>
     </div>
 
     <div class="form">
@@ -52,6 +52,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const router = useRouter();
@@ -66,6 +67,7 @@ const bankAccountId = ref("");
 const adjustType = ref("bill");
 const referenceNo = ref("");
 const remarks = ref("");
+const { formatCurrency: money } = useCurrency();
 
 const resolvedOpeningBalance = computed(() =>
   Number((party.value.remainingOpeningBalance ?? party.value.openingBalance) ?? 0),

@@ -64,13 +64,14 @@
 import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
+const { formatCurrency: money } = useCurrency();
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
-const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
 const statusLabel = (s) => (s === "DUE" ? "Unpaid" : s === "PARTIAL" ? "Partial" : "Paid");
 
 const pendingDays = (inv) => {

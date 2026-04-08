@@ -332,6 +332,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const rows = ref([]);
 const search = ref("");
@@ -362,8 +363,7 @@ const uploadStatusText = ref("");
 const uploadError = ref("");
 const lastSelectedFile = ref(null);
 let progressTimer = null;
-
-const money = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
+const { formatCurrency: money } = useCurrency();
 const normalizeLabel = (value, fallback = "-") => {
   const text = String(value || "").trim();
   if (!text) return fallback;

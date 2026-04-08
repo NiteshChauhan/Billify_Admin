@@ -128,6 +128,7 @@
 import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
+import { useCurrency } from "@/composables/useCurrency";
 
 const parties = ref([]);
 const bankAccounts = ref([]);
@@ -139,8 +140,7 @@ const referenceNo = ref("");
 const remarks = ref("");
 const rows = ref([]);
 const totalDue = ref(0);
-
-const money = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
+const { formatCurrency: money } = useCurrency();
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("en-GB") : "-");
 const typeLabel = (type) => ({ opening: "Opening", sale: "Sale", purchase: "Purchase" }[type] || type);
 

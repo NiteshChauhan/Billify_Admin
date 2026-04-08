@@ -68,6 +68,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const type = computed(() => String(route.params.type || "all").toLowerCase());
@@ -86,8 +87,7 @@ const title = computed(() => {
   if (type.value === "credit") return "Credit Ledger";
   return "Ledger";
 });
-
-const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const { formatCurrency: money } = useCurrency();
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN") : "-");
 const formatType = (t) =>
   ({ SALE: "Sales", PURCHASE: "Purchase", SALE_RETURN: "Sale Return", PURCHASE_RETURN: "Purchase Return", PAYMENT: "Payment" }[t] || t);

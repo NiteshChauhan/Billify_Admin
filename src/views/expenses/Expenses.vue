@@ -105,6 +105,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -126,8 +127,7 @@ const form = reactive({
   bankAccountId: "",
   note: "",
 });
-
-const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
+const { formatCurrency: money } = useCurrency();
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString("en-GB") : "-");
 
 const filteredExpenses = computed(() => {

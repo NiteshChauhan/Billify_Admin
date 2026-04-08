@@ -257,6 +257,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -301,10 +302,10 @@ const historyFilters = reactive({
   from: today,
   to: today,
 });
+const { formatCurrency: money } = useCurrency();
 
 let searchTimer = null;
 
-const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString("en-IN") : "-");
 const typeLabel = (row) => {
   if (row.type === "payment") {

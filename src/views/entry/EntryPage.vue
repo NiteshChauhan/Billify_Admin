@@ -82,15 +82,26 @@
                 min="0"
                 :max="isReturn ? row.maxQty : undefined"
                 v-model.number="row.quantity"
+                @input="updateRowFromRate(row)"
               />
             </td>
             <td>
-              <input type="number" min="0" v-model.number="row.rate" :readonly="isReturn" />
+              <input type="number" min="0" v-model.number="row.rate" :readonly="isReturn" @input="updateRowFromRate(row)" />
               <div v-if="isSaleOrPurchase && row.lastRate !== null" class="rate-hint">
                 Last rate: {{ money(row.lastRate) }}
               </div>
             </td>
-            <td>{{ money((row.quantity || 0) * (row.rate || 0)) }}</td>
+            <td>
+              <input
+                v-if="isSaleOrPurchase"
+                type="number"
+                min="0"
+                step="0.01"
+                v-model.number="row.totalAmount"
+                @input="updateRowFromTotal(row)"
+              />
+              <span v-else>{{ money(row.totalAmount) }}</span>
+            </td>
             <td>
               <button v-if="isSaleOrPurchase" class="btn btn-danger" @click="removeRow(idx)">Remove</button>
             </td>
@@ -143,6 +154,7 @@ import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
+import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
 const router = useRouter();
@@ -172,6 +184,7 @@ const leftOpen = ref(false);
 const rightOpen = ref(false);
 const partySearch = ref("");
 const productSearch = ref("");
+const { formatCurrency: money } = useCurrency();
 
 const isSaleOrPurchase = computed(() => ["sale", "purchase"].includes(transactionType.value));
 const isReturn = computed(() => !isSaleOrPurchase.value);
@@ -191,11 +204,30 @@ const filteredProducts = computed(() => {
 });
 
 const totalAmount = computed(() =>
-  rows.value.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.rate || 0), 0),
+  rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
 );
 
-const money = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
+const roundAmount = (value) => {
+  const num = Number(value || 0);
+  return Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
+};
+
+const updateRowFromRate = (row) => {
+  const quantity = Number(row.quantity || 0);
+  const rate = Number(row.rate || 0);
+  row.totalAmount = roundAmount(quantity * rate);
+};
+
+const updateRowFromTotal = (row) => {
+  const quantity = Number(row.quantity || 0);
+  const total = roundAmount(row.totalAmount);
+  row.totalAmount = total;
+  if (!(quantity > 0)) {
+    return;
+  }
+  row.rate = roundAmount(total / quantity);
+};
 
 const closePanels = () => {
   leftOpen.value = false;
@@ -229,6 +261,7 @@ const addProduct = async (product) => {
     productName: product.name,
     quantity: 1,
     rate: lastRate ?? 0,
+    totalAmount: roundAmount(lastRate ?? 0),
     lastRate,
     availableStock: stockRes.data.stock ?? 0,
   });
@@ -281,6 +314,7 @@ const loadReturnBillItems = async () => {
       maxQty: item.remainingQty,
       quantity: 0,
       rate: item.rate,
+      totalAmount: roundAmount(0),
     }));
 };
 
@@ -332,7 +366,7 @@ const save = async () => {
       paymentType: paymentType.value,
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceDate: invoiceDate.value,
-      items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),
+      items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundAmount(r.rate) })),
     });
     router.push("/sales");
     return;
@@ -345,7 +379,7 @@ const save = async () => {
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceNo: billNumber.value.trim(),
       invoiceDate: invoiceDate.value,
-      items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: r.rate })),
+      items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundAmount(r.rate) })),
     });
     router.push("/purchase");
     return;
@@ -353,7 +387,7 @@ const save = async () => {
 
   const validRows = rows.value
     .filter((r) => Number(r.quantity || 0) > 0)
-    .map((r) => ({ productId: r.productId, quantity: Number(r.quantity), rate: Number(r.rate || 0) }));
+    .map((r) => ({ productId: r.productId, quantity: Number(r.quantity), rate: roundAmount(r.rate) }));
 
   if (!selectedReturnBillId.value || !validRows.length) {
     alert("Select bill and enter return quantity");

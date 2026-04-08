@@ -2,16 +2,18 @@
   <div class="card">
     <h3>{{ title }}</h3>
 
-    <p>Sales: ₹ {{ format(data.sales) }}</p>
-    <p>Cost: ₹ {{ format(data.cost) }}</p>
+    <p>Sales: {{ formatCurrency(data.sales) }}</p>
+    <p>Cost: {{ formatCurrency(data.cost) }}</p>
 
     <h2 :class="data.profit >= 0 ? 'profit' : 'loss'">
-      {{ data.profit >= 0 ? "Profit" : "Loss" }}: ₹ {{ format(data.profit) }}
+      {{ data.profit >= 0 ? "Profit" : "Loss" }}: {{ formatCurrency(data.profit) }}
     </h2>
   </div>
 </template>
 
 <script setup>
+import { useCurrency } from "@/composables/useCurrency";
+
 defineProps({
   title: String,
   data: {
@@ -24,11 +26,7 @@ defineProps({
   },
 });
 
-const format = (value) =>
-  Number(value || 0).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const { formatCurrency } = useCurrency();
 </script>
 
 <style scoped>

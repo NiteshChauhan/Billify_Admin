@@ -79,12 +79,12 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import http from "@/api/http";
+import { useCurrency } from "@/composables/useCurrency";
 
 const search = ref("");
 const typeFilter = ref("all");
 const rowsFromApi = ref([]);
-
-const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   const fy = getFinancialYearParams();
