@@ -175,7 +175,7 @@ onMounted(async () => {
   const data = res.data;
 
   form.supplierId = String(
-    data.partyId?._id || data.supplierId?._id || data.partyId || data.supplierId || "",
+    data.partyId?._id || data.supplierId?._id || data.partyId || data.supplierId || ""
   );
 
   form.invoiceDate = data.invoiceDate?.substring(0, 10);
@@ -190,14 +190,14 @@ onMounted(async () => {
     quantity: item.quantity,
     rate: item.rate,
     availableStock: null,
-    lastRate: null,
+    lastRate: null
   }));
 
   loaded.value = true;
 });
 
 const supplierUsers = computed(() =>
-  users.value.filter((user) => hasUserRole(user, "supplier")),
+  users.value.filter((user) => hasUserRole(user, "supplier"))
 );
 
 const onProductChange = async (item) => {
@@ -210,7 +210,7 @@ const onProductChange = async (item) => {
 
   const lastRateRes = form.supplierId
     ? await http.get(`/products/${item.productId}/last-rate`, {
-        params: { partyId: form.supplierId, type: "purchase" },
+        params: { partyId: form.supplierId, type: "purchase" }
       })
     : { data: { lastRate: null } };
   item.lastRate = lastRateRes.data?.lastRate ?? null;
@@ -222,7 +222,7 @@ const addItem = () => form.items.push(createItem());
 const removeItem = (i) => form.items.splice(i, 1);
 
 const subtotal = computed(() =>
-  form.items.reduce((t, i) => t + i.quantity * i.rate, 0),
+  form.items.reduce((t, i) => t + i.quantity * i.rate, 0)
 );
 
 const total = computed(() => subtotal.value + form.tax);
@@ -252,7 +252,7 @@ const update = async () => {
     .map((i) => ({
       productId: i.productId,
       quantity: Number(i.quantity),
-      rate: Number(i.rate),
+      rate: Number(i.rate)
     }));
 
   if (!payloadItems.length) {
@@ -269,7 +269,7 @@ const update = async () => {
     items: payloadItems,
     tax: Number(form.tax || 0),
     paidAmount: form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
-    partyId: form.supplierId || null,
+    partyId: form.supplierId || null
   });
   router.push("/purchase");
 };
