@@ -56,25 +56,29 @@ onMounted(fetchReport);
       <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Product Name</th>
-            <th>Sale Quantity</th>
-            <th>Cost Price</th>
-            <th>Sale Price</th>
+            <th>Realized Date</th>
+            <th>Invoice No</th>
+            <th>Party</th>
+            <th>Products</th>
+            <th>Qty</th>
+            <th>Sale Amount</th>
+            <th>Cost Amount</th>
             <th>Profit</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, idx) in rows" :key="idx">
             <td>{{ fmt(row.date) }}</td>
+            <td>{{ row.invoiceNo || "-" }}</td>
+            <td>{{ row.partyName || "-" }}</td>
             <td>{{ row.productName }}</td>
             <td>{{ row.quantity }}</td>
-            <td>{{ money(row.costPrice) }}</td>
             <td>{{ money(row.salePrice) }}</td>
+            <td>{{ money(row.costPrice) }}</td>
             <td :class="row.profit >= 0 ? 'ok' : 'bad'">{{ money(row.profit) }}</td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="6" class="empty">No records found</td>
+            <td colspan="8" class="empty">No realized profit records found</td>
           </tr>
         </tbody>
       </table>

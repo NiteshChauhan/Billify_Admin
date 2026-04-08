@@ -46,6 +46,7 @@
       </label>
 
       <div class="actions">
+        <button class="btn secondary" @click="openBalanceHistory">View Balance History</button>
         <button class="btn secondary" @click="showBankModal = true">Add Bank Account</button>
         <button class="btn primary" @click="openAddExpense">Add Expense</button>
         <button class="btn secondary" @click="resetFilters">Reset</button>
@@ -71,7 +72,7 @@
           </tr>
           <tr v-for="row in rows" :key="`${row.type}-${row.billId}`">
             <td>{{ formatDate(row.date) }}</td>
-            <td>{{ typeLabel(row.type) }}</td>
+            <td>{{ typeLabel(row) }}</td>
             <td>{{ row.partyName || "Cash" }}</td>
             <td class="capitalize">{{ row.paymentType }}</td>
             <td>{{ rowReference(row) }}</td>
@@ -207,6 +208,49 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showHistoryModal" class="modal-wrap">
+      <div class="modal history-modal">
+        <div class="modal-head">
+          <h3>Balance History</h3>
+          <button class="close-btn" @click="showHistoryModal = false">X</button>
+        </div>
+        <div class="history-filters">
+          <label class="field">
+            <span>From</span>
+            <input v-model="historyFilters.from" type="date" />
+          </label>
+          <label class="field">
+            <span>To</span>
+            <input v-model="historyFilters.to" type="date" />
+          </label>
+          <div class="history-actions">
+            <button class="btn primary" @click="loadBalanceHistory">Load</button>
+          </div>
+        </div>
+        <div class="table-wrap history-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Opening Balance</th>
+                <th class="num">Closing Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!balanceHistory.length">
+                <td colspan="3" class="empty">No balance history found</td>
+              </tr>
+              <tr v-for="row in balanceHistory" :key="row.date">
+                <td>{{ formatDate(row.date) }}</td>
+                <td class="num">{{ money(row.openingBalance) }}</td>
+                <td class="num">{{ money(row.closingBalance) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -228,6 +272,8 @@ const bankAccounts = ref([]);
 const openingBalanceInput = ref(0);
 const showExpenseModal = ref(false);
 const showBankModal = ref(false);
+const showHistoryModal = ref(false);
+const balanceHistory = ref([]);
 const summary = ref({
   openingBalance: 0,
   totalSales: 0,
@@ -251,12 +297,21 @@ const bankForm = reactive({
   accountNumber: "",
   balance: 0,
 });
+const historyFilters = reactive({
+  from: today,
+  to: today,
+});
 
 let searchTimer = null;
 
 const money = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString("en-IN") : "-");
-const typeLabel = (type) => ({ sale: "Sale", purchase: "Purchase", payment: "Payment", expense: "Expense" }[type] || type);
+const typeLabel = (row) => {
+  if (row.type === "payment") {
+    return row.paymentDirection === "paid" ? "Payment Paid" : "Payment Received";
+  }
+  return ({ sale: "Sale", purchase: "Purchase", payment: "Payment", expense: "Expense" }[row.type] || row.type);
+};
 const rowReference = (row) => {
   if (row.type === "expense") {
     return row.note || row.bankAccountName || "-";
@@ -304,6 +359,24 @@ const load = async () => {
   };
   openingBalanceInput.value = Number(summary.value.openingBalance || 0);
   bankAccounts.value = bankRes.data || [];
+};
+
+const loadBalanceHistory = async () => {
+  const res = await http.get("/reports/daybook/balance-history", {
+    params: {
+      from: historyFilters.from,
+      to: historyFilters.to,
+      paymentType: filters.paymentType,
+    },
+  });
+  balanceHistory.value = res.data.history || [];
+};
+
+const openBalanceHistory = async () => {
+  historyFilters.from = filters.date;
+  historyFilters.to = filters.date;
+  showHistoryModal.value = true;
+  await loadBalanceHistory();
 };
 
 const saveOpeningBalance = async () => {
@@ -627,6 +700,26 @@ tbody tr:hover {
   padding: 16px;
   display: grid;
   gap: 12px;
+}
+
+.history-modal {
+  width: min(760px, 96vw);
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.history-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-table {
+  max-height: 380px;
 }
 
 .modal-head {
