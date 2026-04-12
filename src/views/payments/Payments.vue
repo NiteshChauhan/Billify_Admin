@@ -129,6 +129,7 @@ import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const parties = ref([]);
 const bankAccounts = ref([]);
@@ -191,7 +192,7 @@ const handleManualAmount = (row) => {
 
 const savePayment = async () => {
   if (paymentMode.value === "BANK" && !bankAccountId.value) {
-    alert("Bank account is required for bank payment");
+    notifyWarning("Bank account is required for bank payment");
     return;
   }
 
@@ -204,7 +205,7 @@ const savePayment = async () => {
     }));
 
   if (!allocations.length) {
-    alert("Select at least one outstanding item");
+    notifyWarning("Select at least one outstanding item");
     return;
   }
 
@@ -218,6 +219,7 @@ const savePayment = async () => {
     remarks: remarks.value,
   });
 
+  notifySuccess("Payment saved successfully.");
   totalAmount.value = 0;
   referenceNo.value = "";
   remarks.value = "";

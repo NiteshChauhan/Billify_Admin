@@ -121,6 +121,7 @@ import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
 import { useRouter } from "vue-router";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const router = useRouter();
 const { formatCurrency: money } = useCurrency();
@@ -189,21 +190,21 @@ const total = computed(() => subtotal.value + form.tax);
 
 const save = async () => {
   if (!form.invoiceNo?.trim()) {
-    alert("Purchase bill number is required");
+    notifyWarning("Purchase bill number is required");
     return;
   }
 
   if (!["cash", "bank", "credit"].includes(form.paymentType)) {
-    alert("Payment type is required");
+    notifyWarning("Payment type is required");
     return;
   }
   if (form.paymentType === "bank" && !form.bankAccountId) {
-    alert("Bank account is required for bank payment");
+    notifyWarning("Bank account is required for bank payment");
     return;
   }
 
   if (form.paymentType === "credit" && !form.supplierId) {
-    alert("Supplier is required for credit");
+    notifyWarning("Supplier is required for credit");
     return;
   }
 
@@ -216,7 +217,7 @@ const save = async () => {
     }));
 
   if (!payloadItems.length) {
-    alert("Add at least one valid product row");
+    notifyWarning("Add at least one valid product row");
     return;
   }
 
@@ -230,6 +231,7 @@ const save = async () => {
     paidAmount: form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
     partyId: form.supplierId || null,
   });
+  notifySuccess("Purchase saved successfully.");
   router.push("/purchase");
 };
 </script>

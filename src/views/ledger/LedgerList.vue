@@ -71,6 +71,9 @@
       <div class="item">Total Bill Amount: <strong>{{ money(summary.totalBillAmount) }}</strong></div>
       <div class="item">Total Outstanding: <strong>{{ money(summary.totalOutstanding) }}</strong></div>
       <div class="item">Total Paid: <strong>{{ money(summary.totalPaid) }}</strong></div>
+      <div class="note" title="Totals are deduplicated by transaction (sale, purchase, return, payment), so they won’t equal the sum of grouped rows.">
+        Totals are deduped by transaction.
+      </div>
     </div>
   </div>
 </template>
@@ -84,6 +87,7 @@ import { useCurrency } from "@/composables/useCurrency";
 const search = ref("");
 const typeFilter = ref("all");
 const rowsFromApi = ref([]);
+const summaryFromApi = ref({ totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 });
 const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
@@ -91,7 +95,13 @@ const load = async () => {
   const res = await http.get("/reports/ledger-list", {
     params: { ...fy, type: typeFilter.value },
   });
-  rowsFromApi.value = res.data || [];
+  if (Array.isArray(res.data)) {
+    rowsFromApi.value = res.data || [];
+    summaryFromApi.value = { totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 };
+  } else {
+    rowsFromApi.value = res.data?.rows || [];
+    summaryFromApi.value = res.data?.summary || { totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 };
+  }
 };
 
 onMounted(load);
@@ -113,17 +123,7 @@ const filtered = computed(() => {
 
 const rows = computed(() => filtered.value.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))));
 
-const summary = computed(() =>
-  rows.value.reduce(
-    (t, r) => {
-      t.totalBillAmount += r.totalBillAmount;
-      t.totalOutstanding += r.outstanding;
-      t.totalPaid += r.paid;
-      return t;
-    },
-    { totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 },
-  ),
-);
+const summary = computed(() => summaryFromApi.value);
 </script>
 
 <style scoped>
@@ -144,8 +144,9 @@ tbody tr:hover { background: #f8fafc; }
 .btn { padding: 8px 12px; border-radius: 6px; text-decoration: none; }
 .primary { background: #2563eb; color: #fff; }
 .ghost { border: 1px solid #2563eb; color: #2563eb; }
-.summary { margin-top: 12px; display: flex; gap: 16px; justify-content: flex-end; font-weight: 600; }
+.summary { margin-top: 12px; display: flex; gap: 16px; justify-content: flex-end; font-weight: 600; align-items: center; flex-wrap: wrap; }
 .summary .item { background: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.summary .note { font-weight: 500; color: #64748b; font-size: 12px; }
 @media (max-width: 1024px) {
   .top-bar { grid-template-columns: 1fr; }
   .center { width: 100%; }

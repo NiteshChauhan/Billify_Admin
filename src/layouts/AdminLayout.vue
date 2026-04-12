@@ -63,6 +63,7 @@
     </div>
 
     <div v-if="mobileOpen" class="backdrop" @click="mobileOpen = false" />
+    <NotificationHost />
   </div>
 </template>
 
@@ -71,6 +72,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import FinancialYearSelect from "@/components/FinancialYearSelect.vue";
+import NotificationHost from "@/components/NotificationHost.vue";
 
 const router = useRouter();
 const auth = useAuthStore();

@@ -1,24 +1,30 @@
 <template>
   <div class="report-card">
-    <h2>Outstanding Report</h2>
+    <div class="report-head">
+      <div>
+        <h2>Outstanding Report</h2>
+        <p class="subhead">Track pending balances by customer and supplier.</p>
+      </div>
 
-    <div class="tabs">
-      <button
-        :class="{ active: tab === 'SUPPLIER' }"
-        @click="switchTab('SUPPLIER')"
-      >
-        Suppliers
-      </button>
+      <div class="tabs">
+        <button
+          :class="{ active: tab === 'SUPPLIER' }"
+          @click="switchTab('SUPPLIER')"
+        >
+          Suppliers
+        </button>
 
-      <button
-        :class="{ active: tab === 'CUSTOMER' }"
-        @click="switchTab('CUSTOMER')"
-      >
-        Customers
-      </button>
+        <button
+          :class="{ active: tab === 'CUSTOMER' }"
+          @click="switchTab('CUSTOMER')"
+        >
+          Customers
+        </button>
+      </div>
     </div>
 
-    <table v-if="rows.length">
+    <div class="table-wrap" v-if="rows.length">
+      <table>
       <thead>
         <tr>
           <th>Name</th>
@@ -59,7 +65,8 @@
           <th></th>
         </tr>
       </tfoot>
-    </table>
+      </table>
+    </div>
 
     <p v-else class="empty">No data found</p>
   </div>
@@ -127,10 +134,24 @@ const totals = computed(() => {
   border-radius: 8px;
 }
 
+.report-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.subhead {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
 .tabs {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
+  flex-wrap: wrap;
 }
 
 .tabs button {
@@ -147,15 +168,29 @@ const totals = computed(() => {
   border-color: #2563eb;
 }
 
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 700px;
 }
 
 th,
 td {
-  padding: 10px;
+  padding: 12px 10px;
   border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+th {
+  background: #f8fafc;
+  font-size: 13px;
+  color: #334155;
 }
 
 tfoot th {
@@ -175,5 +210,12 @@ tfoot th {
   text-align: center;
   margin-top: 30px;
   color: #6b7280;
+}
+
+@media (max-width: 720px) {
+  .report-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

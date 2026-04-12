@@ -333,6 +333,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const rows = ref([]);
 const search = ref("");
@@ -617,7 +618,7 @@ const downloadErrorReport = () => {
 
 const save = async () => {
   if (!form.name || !form.sku) {
-    alert("Name and SKU are required");
+    notifyWarning("Name and SKU are required");
     return;
   }
 
@@ -629,6 +630,7 @@ const save = async () => {
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
     });
+    notifySuccess("Product updated successfully.");
   } else {
     await http.post("/products", {
       name: form.name,
@@ -637,6 +639,7 @@ const save = async () => {
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
     });
+    notifySuccess("Product created successfully.");
   }
 
   closeModal();

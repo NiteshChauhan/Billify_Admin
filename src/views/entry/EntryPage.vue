@@ -155,6 +155,7 @@ import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const route = useRoute();
 const router = useRouter();
@@ -325,7 +326,7 @@ const onTypeChange = async () => {
 
 const validateBillNumber = () => {
   if (!billNumber.value?.trim()) {
-    alert("Please enter bill number");
+    notifyWarning("Please enter bill number");
     return false;
   }
   return true;
@@ -333,7 +334,7 @@ const validateBillNumber = () => {
 
 const save = async () => {
   if (!rows.value.length) {
-    alert("Please add at least one product");
+    notifyWarning("Please add at least one product");
     return;
   }
 
@@ -343,17 +344,17 @@ const save = async () => {
 
   if (isSaleOrPurchase.value && !selectedParty.value?._id) {
     if (paymentType.value === "credit") {
-      alert("Please select customer/supplier for credit");
+      notifyWarning("Please select customer/supplier for credit");
       return;
     }
   }
 
   if (isSaleOrPurchase.value && !["cash", "bank", "credit"].includes(paymentType.value)) {
-    alert("Please select payment type");
+    notifyWarning("Please select payment type");
     return;
   }
   if (isSaleOrPurchase.value && paymentType.value === "bank" && !bankAccountId.value) {
-    alert("Please select bank account");
+    notifyWarning("Please select bank account");
     return;
   }
 
@@ -365,6 +366,7 @@ const save = async () => {
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
     });
+    notifySuccess("Sale saved successfully.");
     router.push("/sales");
     return;
   }
@@ -378,6 +380,7 @@ const save = async () => {
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
     });
+    notifySuccess("Purchase saved successfully.");
     router.push("/purchase");
     return;
   }
@@ -387,7 +390,7 @@ const save = async () => {
     .map((r) => ({ productId: r.productId, quantity: Number(r.quantity), rate: roundCurrency(r.rate) }));
 
   if (!selectedReturnBillId.value || !validRows.length) {
-    alert("Select bill and enter return quantity");
+    notifyWarning("Select bill and enter return quantity");
     return;
   }
 
@@ -398,6 +401,7 @@ const save = async () => {
       returnDate: invoiceDate.value,
       items: validRows,
     });
+    notifySuccess("Sale return saved successfully.");
     router.push("/sale-return");
     return;
   }
@@ -408,6 +412,7 @@ const save = async () => {
     returnDate: invoiceDate.value,
     items: validRows,
   });
+  notifySuccess("Purchase return saved successfully.");
   router.push("/purchase-return");
 };
 

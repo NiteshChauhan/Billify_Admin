@@ -3,8 +3,13 @@
     <div class="auth-card">
       <router-view />
     </div>
+    <NotificationHost />
   </div>
 </template>
+
+<script setup>
+import NotificationHost from "@/components/NotificationHost.vue";
+</script>
 
 <style scoped>
 .auth-container {

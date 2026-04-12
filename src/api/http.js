@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/authStore";
+import { notifyError, parseApiError } from "@/utils/notifications";
 
 const http = axios.create({
   baseURL:
@@ -34,9 +35,12 @@ http.interceptors.response.use(
       auth.logout?.();
     }
 
+    if (!error.config?.skipNotify) {
+      notifyError(parseApiError(error));
+    }
+
     return Promise.reject(error);
   },
 );
 
 export default http;
-

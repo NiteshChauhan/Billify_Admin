@@ -274,6 +274,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -411,16 +412,17 @@ const saveOpeningBalance = async () => {
     date: filters.date,
     openingBalance: Number(openingBalanceInput.value || 0),
   });
+  notifySuccess("Opening balance saved.");
   await load();
 };
 
 const saveExpense = async () => {
   if (!expenseForm.date || !expenseForm.title || Number(expenseForm.amount || 0) <= 0) {
-    alert("Date, title and amount are required");
+    notifyWarning("Date, title and amount are required");
     return;
   }
   if (expenseForm.paymentType === "bank" && !expenseForm.bankAccountId) {
-    alert("Select bank account for bank expense");
+    notifyWarning("Select bank account for bank expense");
     return;
   }
 
@@ -435,8 +437,10 @@ const saveExpense = async () => {
 
   if (expenseForm.id) {
     await http.put(`/expenses/${expenseForm.id}`, payload);
+    notifySuccess("Expense updated successfully.");
   } else {
     await http.post("/expenses", payload);
+    notifySuccess("Expense added successfully.");
   }
 
   closeExpenseModal();
@@ -476,12 +480,13 @@ const deleteExpense = async (row) => {
     return;
   }
   await http.delete(`/expenses/${row.billId}`);
+  notifySuccess("Expense deleted successfully.");
   await load();
 };
 
 const saveBankAccount = async () => {
   if (!bankForm.accountName || !bankForm.accountNumber) {
-    alert("Account name and account number are required");
+    notifyWarning("Account name and account number are required");
     return;
   }
 
@@ -491,6 +496,7 @@ const saveBankAccount = async () => {
     balance: Number(bankForm.balance || 0),
   });
 
+  notifySuccess("Bank account added successfully.");
   bankForm.accountName = "";
   bankForm.accountNumber = "";
   bankForm.balance = 0;

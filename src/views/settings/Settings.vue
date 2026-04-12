@@ -173,6 +173,7 @@
 import { onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -253,7 +254,7 @@ const loadOpeningBalance = async () => {
 
 const saveCompany = async () => {
   if (!companyForm.name) {
-    alert("Company name is required");
+    notifyWarning("Company name is required");
     return;
   }
   await http.post("/settings/company", { ...companyForm });
@@ -262,6 +263,7 @@ const saveCompany = async () => {
     decimals: companyForm.currencyDecimals,
   });
   companyMessage.value = "Company profile saved";
+  notifySuccess("Company profile saved.");
 };
 
 const openBankModal = (account = null) => {
@@ -283,7 +285,7 @@ const closeBankModal = () => {
 
 const saveBankAccount = async () => {
   if (!bankForm.accountName || !bankForm.accountNumber) {
-    alert("Account name and account number are required");
+    notifyWarning("Account name and account number are required");
     return;
   }
   if (bankForm.id) {
@@ -293,6 +295,7 @@ const saveBankAccount = async () => {
       balance: Number(bankForm.balance || 0),
     });
     bankMessage.value = "Bank account updated";
+    notifySuccess("Bank account updated.");
   } else {
     await http.post("/bank-accounts", {
       accountName: bankForm.accountName,
@@ -300,6 +303,7 @@ const saveBankAccount = async () => {
       balance: Number(bankForm.balance || 0),
     });
     bankMessage.value = "Bank account added";
+    notifySuccess("Bank account added.");
   }
   closeBankModal();
   await loadBankAccounts();
@@ -312,6 +316,7 @@ const removeBankAccount = async (account) => {
   try {
     await http.delete(`/bank-accounts/${account._id}`);
     bankMessage.value = "Bank account deleted";
+    notifySuccess("Bank account deleted.");
     await loadBankAccounts();
   } catch (err) {
     bankMessage.value = err.response?.data?.message || "Failed to delete bank account";
@@ -324,16 +329,17 @@ const saveOpeningBalance = async () => {
     openingBalance: Number(openingForm.openingBalance || 0),
   });
   openingMessage.value = "Opening balance saved";
+  notifySuccess("Opening balance saved.");
 };
 
 const changePassword = async () => {
   passwordMessage.value = "";
   if (!passwordForm.oldPassword || !passwordForm.newPassword) {
-    alert("Old and new password are required");
+    notifyWarning("Old and new password are required");
     return;
   }
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    alert("New password and confirm password do not match");
+    notifyWarning("New password and confirm password do not match");
     return;
   }
 
@@ -346,6 +352,7 @@ const changePassword = async () => {
     passwordForm.newPassword = "";
     passwordForm.confirmPassword = "";
     passwordMessage.value = "Password updated successfully";
+    notifySuccess("Password updated successfully.");
   } catch (err) {
     passwordMessage.value = err.response?.data?.message || "Failed to change password";
   }

@@ -124,6 +124,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -207,11 +208,11 @@ const closeModal = () => {
 
 const saveLoan = async () => {
   if (!form.date || !form.type || Number(form.amount || 0) <= 0) {
-    alert("Date, type, and amount are required");
+    notifyWarning("Date, type, and amount are required");
     return;
   }
   if (form.paymentType === "bank" && !form.bankAccountId) {
-    alert("Bank account is required for bank loan entries");
+    notifyWarning("Bank account is required for bank loan entries");
     return;
   }
 
@@ -226,8 +227,10 @@ const saveLoan = async () => {
 
   if (form.id) {
     await http.put(`/loans/${form.id}`, payload);
+    notifySuccess("Loan entry updated successfully.");
   } else {
     await http.post("/loans", payload);
+    notifySuccess("Loan entry added successfully.");
   }
 
   closeModal();
@@ -239,6 +242,7 @@ const deleteLoan = async (loan) => {
     return;
   }
   await http.delete(`/loans/${loan._id}`);
+  notifySuccess("Loan entry deleted successfully.");
   await loadLoans();
 };
 

@@ -53,6 +53,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const route = useRoute();
 const router = useRouter();
@@ -93,11 +94,11 @@ const canSave = computed(() => amount.value > 0 && amount.value <= maxAmount.val
 
 const save = async () => {
   if (paymentMode.value === "BANK" && !bankAccountId.value) {
-    alert("Bank account is required for bank payment");
+    notifyWarning("Bank account is required for bank payment");
     return;
   }
   if (adjustType.value === "opening" && !canAdjustOpening.value) {
-    alert("Opening balance is not available for adjustment");
+    notifyWarning("Opening balance is not available for adjustment");
     return;
   }
   await http.post("/payments", {
@@ -112,6 +113,7 @@ const save = async () => {
     remarks: remarks.value,
   });
 
+  notifySuccess("Payment saved successfully.");
   router.push(`/purchase/${route.params.id}`);
 };
 </script>

@@ -100,6 +100,7 @@ import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import {
   getSalesByIdApi,
   updateSalesApi,
@@ -183,16 +184,16 @@ const total = computed(
 
 const update = async () => {
   if (!["cash", "bank", "credit"].includes(paymentType.value)) {
-    alert("Payment type is required");
+    notifyWarning("Payment type is required");
     return;
   }
   if (paymentType.value === "bank" && !bankAccountId.value) {
-    alert("Bank account is required for bank payment");
+    notifyWarning("Bank account is required for bank payment");
     return;
   }
 
   if (paymentType.value === "credit" && !vendorId.value) {
-    alert("Customer is required for credit");
+    notifyWarning("Customer is required for credit");
     return;
   }
 
@@ -205,7 +206,7 @@ const update = async () => {
     }));
 
   if (!payloadItems.length) {
-    alert("Add at least one valid product row");
+    notifyWarning("Add at least one valid product row");
     return;
   }
 
@@ -220,6 +221,7 @@ const update = async () => {
     paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
   });
 
+  notifySuccess("Sale updated successfully.");
   router.push("/sales");
 };
 </script>

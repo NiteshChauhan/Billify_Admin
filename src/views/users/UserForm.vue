@@ -48,6 +48,7 @@ import {
   updateUserApi,
 } from "@/api/userApi";
 import { getUserRoles } from "@/utils/userRole";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const route = useRoute();
 const router = useRouter();
@@ -109,12 +110,12 @@ const buildPayload = () => {
 
 const save = async () => {
   if (!form.name.trim()) {
-    alert("User name is required");
+    notifyWarning("User name is required");
     return;
   }
 
   if (!form.roles.length) {
-    alert("Select at least one role");
+    notifyWarning("Select at least one role");
     return;
   }
 
@@ -122,8 +123,10 @@ const save = async () => {
 
   if (isEdit.value) {
     await updateUserApi(route.params.id, payload);
+    notifySuccess("User updated successfully.");
   } else {
     await createUserApi(payload);
+    notifySuccess("User created successfully.");
   }
 
   router.push("/users");
