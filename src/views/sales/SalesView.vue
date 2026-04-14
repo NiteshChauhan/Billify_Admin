@@ -78,6 +78,7 @@
             <th>Return Invoice</th>
             <th>Date</th>
             <th>Amount</th>
+            <th>Replacement</th>
             <th>View</th>
           </tr>
         </thead>
@@ -86,6 +87,10 @@
             <td>{{ r.returnNo || "-" }}</td>
             <td>{{ formatDate(r.returnDate) }}</td>
             <td>{{ money(r.totalAmount) }}</td>
+            <td>
+              <router-link v-if="r.replacementBillId" :to="`/sales/${r.replacementBillId}`">View</router-link>
+              <span v-else>-</span>
+            </td>
             <td>
               <router-link :to="`/sale-return?billId=${data._id}`">View</router-link>
             </td>

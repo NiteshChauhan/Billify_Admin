@@ -1,8 +1,11 @@
 <template>
   <div class="card">
     <div class="header">
-      <h2>Users</h2>
-      <router-link to="/users/create" class="btn">
+      <div>
+        <h2>Users</h2>
+        <p class="subhead">Manage customer and supplier contacts in one place.</p>
+      </div>
+      <router-link to="/users/create" class="btn action-btn">
         + Add User
       </router-link>
     </div>
@@ -71,7 +74,17 @@ const formatType = (user) => {
 .header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 15px;
+}
+.header h2 {
+  margin: 0;
+}
+.subhead {
+  margin: 6px 0 0;
+  color: #64748b;
 }
 table {
   width: 100%;
@@ -84,10 +97,16 @@ td {
   text-align: left;
 }
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #2563eb;
   color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .actions {
   display: flex;
@@ -95,5 +114,15 @@ td {
 }
 .actions a {
   color: #1d4ed8;
+}
+
+@media (max-width: 720px) {
+  .header {
+    align-items: stretch;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
 }
 </style>

@@ -3,8 +3,9 @@
     <div class="head">
       <div>
         <h2>Purchase Return List</h2>
+        <p class="subhead">Track supplier return bills and linked replacements.</p>
       </div>
-      <router-link class="btn" to="/entry?type=purchase_return">Add Bill</router-link>
+      <router-link class="btn action-btn" to="/entry?type=purchase_return">Add Bill</router-link>
     </div>
 
     <div class="filters">
@@ -13,7 +14,9 @@
       <button class="btn-light" @click="load">Apply</button>
     </div>
 
-    <table>
+    <Loader v-if="loading" />
+
+    <table v-else>
       <thead>
         <tr>
           <th>Sr No</th>
@@ -21,6 +24,7 @@
           <th>Supplier</th>
           <th>Return Number</th>
           <th>Total Amount</th>
+          <th>Replacement</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -31,9 +35,13 @@
           <td>{{ row.partyId?.name || '-' }}</td>
           <td>{{ row.returnNo || (`PR-${idx + 1}`) }}</td>
           <td>{{ money(row.totalAmount) }}</td>
+          <td>
+            <router-link v-if="row.replacementBillId" :to="`/purchase/${row.replacementBillId}`">View</router-link>
+            <span v-else>-</span>
+          </td>
           <td><router-link :to="`/purchase/${row.billId}`">View Bill</router-link></td>
         </tr>
-        <tr v-if="!rows.length"><td colspan="6" class="empty">No return entries</td></tr>
+        <tr v-if="!rows.length"><td colspan="7" class="empty">No return entries</td></tr>
       </tbody>
     </table>
   </div>
@@ -45,15 +53,18 @@ import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import Loader from "@/components/Loader.vue";
 
 const route = useRoute();
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
+const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
 const load = async () => {
+  loading.value = true;
   const params = { ...getFinancialYearParams(), billType: "PURCHASE" };
   if (route.query.billId) params.billId = String(route.query.billId);
   if (fromDate.value) params.from = fromDate.value;
@@ -62,6 +73,7 @@ const load = async () => {
     params,
   });
   rows.value = res.data || [];
+  loading.value = false;
 };
 
 onMounted(load);
@@ -69,13 +81,25 @@ onMounted(load);
 
 <style scoped>
 .card { background: #fff; border-radius: 12px; padding: 18px; }
-.head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.head h2 { margin: 0; }
+.subhead { margin: 6px 0 0; color: #64748b; }
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: end; }
 .filters label { display: grid; gap: 6px; font-size: 13px; }
 input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
-.btn { background: #0ea5e9; color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; background: #0ea5e9; color: white; text-decoration: none; padding: 10px 14px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
 .btn-light { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 9px 12px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .empty { text-align: center; color: #64748b; }
+
+@media (max-width: 720px) {
+  .head {
+    align-items: stretch;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
+}
 </style>

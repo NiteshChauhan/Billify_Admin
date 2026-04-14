@@ -14,7 +14,9 @@
       <button class="btn-light" @click="load">Apply</button>
     </div>
 
-    <div class="table-wrap">
+    <Loader v-if="loading" />
+
+    <div v-else class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -52,7 +54,7 @@
       </table>
     </div>
 
-    <div class="summary">
+    <div class="summary" v-if="!loading">
       <div>Total Sales Amount: {{ money(totals.totalSales) }}</div>
       <div>Total Paid Amount: {{ money(totals.totalPaid) }}</div>
       <div>Outstanding Amount: {{ money(totals.outstanding) }}</div>
@@ -65,10 +67,12 @@ import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import Loader from "@/components/Loader.vue";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
+const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
@@ -81,11 +85,13 @@ const pendingDays = (inv) => {
 };
 
 const load = async () => {
+  loading.value = true;
   const params = { ...getFinancialYearParams() };
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
   const res = await http.get("/sales", { params });
   rows.value = res.data || [];
+  loading.value = false;
 };
 
 const printBill = (id) => {

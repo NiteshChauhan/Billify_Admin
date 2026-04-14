@@ -19,7 +19,9 @@
       </div>
     </div>
 
-    <div class="type-grid">
+    <Loader v-if="loading" />
+
+    <div class="type-grid" v-else>
       <label v-for="opt in typeOptions" :key="opt.value" class="type-option">
         <input type="radio" v-model="transactionType" :value="opt.value" @change="onTypeChange" />
         {{ opt.label }}
@@ -113,6 +115,116 @@
       </table>
     </div>
 
+    <div v-if="isReturn" class="replacement">
+      <label class="replacement-toggle">
+        <input type="checkbox" v-model="createReplacement" />
+        Create Replacement Bill
+      </label>
+
+      <div v-if="createReplacement" class="replacement-body">
+        <div class="replacement-head">
+          <h3>Replacement Items</h3>
+          <button class="btn btn-secondary" @click="addReplacementRow">+ Add Item</button>
+        </div>
+
+        <div class="replacement-grid">
+          <label v-if="transactionType === 'purchase_return'" class="field-inline">
+            <span>Replacement Bill No</span>
+            <input v-model.trim="replacementInvoiceNo" placeholder="Enter replacement bill no" />
+          </label>
+          <label class="field-inline">
+            <span>Payment Type</span>
+            <select v-model="replacementPaymentType">
+              <option value="cash">Cash</option>
+              <option value="bank">Bank</option>
+              <option value="credit">Credit</option>
+            </select>
+          </label>
+          <label v-if="replacementPaymentType === 'bank'" class="field-inline">
+            <span>Bank Account</span>
+            <select v-model="replacementBankAccountId">
+              <option value="">Select Bank Account</option>
+              <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+                {{ account.accountName }} - {{ account.accountNumber }}
+              </option>
+            </select>
+          </label>
+          <label class="field-inline">
+            <span>Paid Amount</span>
+            <input type="number" v-model.number="replacementPaidAmount" :disabled="replacementPaymentType !== 'credit'" />
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Available Stock</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in replacementRows" :key="`rep-${idx}`">
+                <td>
+                  <select v-model="row.productId" @change="onReplacementProductChange(row)">
+                    <option value="">Select</option>
+                    <option v-for="p in products" :key="p._id" :value="p._id">
+                      {{ p.name }}
+                    </option>
+                  </select>
+                </td>
+                <td>{{ row.availableStock ?? "-" }}</td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    v-model.number="row.quantity"
+                    @input="updateReplacementRowFromRate(row)"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    v-model.number="row.rate"
+                    @input="updateReplacementRowFromRate(row)"
+                  />
+                  <div v-if="row.lastRate !== null" class="rate-hint">
+                    Last rate: {{ money(row.lastRate) }}
+                  </div>
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    :step="decimalStep"
+                    v-model.number="row.totalAmount"
+                    @input="updateReplacementRowFromTotal(row)"
+                  />
+                </td>
+                <td>
+                  <button class="btn btn-danger" @click="removeReplacementRow(idx)">Remove</button>
+                </td>
+              </tr>
+              <tr v-if="!replacementRows.length">
+                <td colspan="6" class="empty">No replacement items</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="replacement-summary">
+          <span>Return Total: {{ money(totalAmount) }}</span>
+          <span>Replacement Total: {{ money(replacementTotal) }}</span>
+          <strong>Net Difference: {{ money(netDifference) }}</strong>
+        </div>
+      </div>
+    </div>
+
     <div class="foot">
       <strong>Total Bill Amount: {{ money(totalAmount) }}</strong>
       <button class="btn btn-success" @click="save">Save</button>
@@ -156,6 +268,7 @@ import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import Loader from "@/components/Loader.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -176,10 +289,17 @@ const paymentType = ref("credit");
 const bankAccountId = ref("");
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
+const loading = ref(false);
 
 const returnBills = ref([]);
 const selectedReturnBillId = ref("");
 const bankAccounts = ref([]);
+const createReplacement = ref(false);
+const replacementRows = ref([]);
+const replacementPaymentType = ref("credit");
+const replacementBankAccountId = ref("");
+const replacementPaidAmount = ref(0);
+const replacementInvoiceNo = ref("");
 
 const leftOpen = ref(false);
 const rightOpen = ref(false);
@@ -207,6 +327,15 @@ const filteredProducts = computed(() => {
 const totalAmount = computed(() =>
   roundCurrency(rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0)),
 );
+const replacementTotal = computed(() =>
+  roundCurrency(
+    replacementRows.value.reduce(
+      (sum, row) => sum + Number(row.quantity || 0) * Number(row.rate || 0),
+      0,
+    ),
+  ),
+);
+const netDifference = computed(() => roundCurrency(replacementTotal.value - totalAmount.value));
 const decimalStep = computed(() => (Number(currencyDecimals.value || 2) >= 3 ? "0.001" : "0.01"));
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
@@ -218,6 +347,22 @@ const updateRowFromRate = (row) => {
 };
 
 const updateRowFromTotal = (row) => {
+  const quantity = Number(row.quantity || 0);
+  const total = roundCurrency(row.totalAmount);
+  row.totalAmount = total;
+  if (!(quantity > 0)) {
+    return;
+  }
+  row.rate = roundCurrency(total / quantity);
+};
+
+const updateReplacementRowFromRate = (row) => {
+  const quantity = Number(row.quantity || 0);
+  const rate = Number(row.rate || 0);
+  row.totalAmount = roundCurrency(quantity * rate);
+};
+
+const updateReplacementRowFromTotal = (row) => {
   const quantity = Number(row.quantity || 0);
   const total = roundCurrency(row.totalAmount);
   row.totalAmount = total;
@@ -267,6 +412,48 @@ const addProduct = async (product) => {
 };
 
 const removeRow = (idx) => rows.value.splice(idx, 1);
+const addReplacementRow = () =>
+  replacementRows.value.push({
+    productId: "",
+    quantity: 1,
+    rate: 0,
+    totalAmount: 0,
+    availableStock: null,
+    lastRate: null,
+  });
+const removeReplacementRow = (idx) => replacementRows.value.splice(idx, 1);
+
+const onReplacementProductChange = async (row) => {
+  row.availableStock = null;
+  row.lastRate = null;
+  row.rate = 0;
+  row.totalAmount = 0;
+
+  if (!row.productId) {
+    return;
+  }
+
+  const product = products.value.find((p) => String(p._id) === String(row.productId));
+  const stockRes = await http.get(`/stock/${row.productId}`);
+  row.availableStock = stockRes.data?.stock ?? 0;
+
+  let lastRate = null;
+  if (selectedParty.value?._id) {
+    const lastRateRes = await http.get(`/products/${row.productId}/last-rate`, {
+      params: {
+        partyId: selectedParty.value._id,
+        type: "sale",
+      },
+    });
+    lastRate = lastRateRes.data?.lastRate ?? null;
+  } else if (product && Number(product.lastSalePrice || 0) > 0) {
+    lastRate = Number(product.lastSalePrice || 0);
+  }
+
+  row.lastRate = lastRate;
+  row.rate = Number(lastRate ?? 0);
+  row.totalAmount = roundCurrency(Number(row.quantity || 0) * Number(row.rate || 0));
+};
 
 const loadNextBillNo = async () => {
   if (!isAutoBillNumber.value) {
@@ -320,6 +507,12 @@ const onTypeChange = async () => {
   rows.value = [];
   selectedParty.value = null;
   selectedReturnBillId.value = "";
+  createReplacement.value = false;
+  replacementRows.value = [];
+  replacementPaymentType.value = "credit";
+  replacementBankAccountId.value = "";
+  replacementPaidAmount.value = 0;
+  replacementInvoiceNo.value = "";
   await loadNextBillNo();
   await loadReturnBills();
 };
@@ -394,29 +587,73 @@ const save = async () => {
     return;
   }
 
+  let replacementPayload = null;
+  if (createReplacement.value) {
+    const repItems = replacementRows.value
+      .filter((r) => r.productId && Number(r.quantity) > 0 && Number(r.rate) > 0)
+      .map((r) => ({
+        productId: r.productId,
+        quantity: Number(r.quantity),
+        rate: roundCurrency(r.rate),
+      }));
+
+    if (!repItems.length) {
+      notifyWarning("Add at least one replacement item");
+      return;
+    }
+    if (replacementPaymentType.value === "bank" && !replacementBankAccountId.value) {
+      notifyWarning("Select bank account for replacement bill");
+      return;
+    }
+    if (transactionType.value === "purchase_return" && !replacementInvoiceNo.value.trim()) {
+      notifyWarning("Replacement purchase bill number is required");
+      return;
+    }
+
+    replacementPayload = {
+      enabled: true,
+      items: repItems,
+      paymentType: replacementPaymentType.value,
+      bankAccountId:
+        replacementPaymentType.value === "bank" ? replacementBankAccountId.value : null,
+      paidAmount:
+        replacementPaymentType.value === "credit" ? Number(replacementPaidAmount.value || 0) : null,
+      invoiceNo: transactionType.value === "purchase_return" ? replacementInvoiceNo.value.trim() : null,
+    };
+  }
+
   if (transactionType.value === "sale_return") {
-    await http.post("/returns/sale", {
+    const res = await http.post("/returns/sale", {
       returnNo: billNumber.value,
       billId: selectedReturnBillId.value,
       returnDate: invoiceDate.value,
       items: validRows,
+      replacement: replacementPayload,
     });
+    if (res.data?.replacementError) {
+      notifyWarning(`Return saved, but replacement failed: ${res.data.replacementError}`);
+    }
     notifySuccess("Sale return saved successfully.");
     router.push("/sale-return");
     return;
   }
 
-  await http.post("/returns/purchase", {
+  const res = await http.post("/returns/purchase", {
     returnNo: billNumber.value.trim(),
     billId: selectedReturnBillId.value,
     returnDate: invoiceDate.value,
     items: validRows,
+    replacement: replacementPayload,
   });
+  if (res.data?.replacementError) {
+    notifyWarning(`Return saved, but replacement failed: ${res.data.replacementError}`);
+  }
   notifySuccess("Purchase return saved successfully.");
   router.push("/purchase-return");
 };
 
 onMounted(async () => {
+  loading.value = true;
   const [productRes, partyRes, bankRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts")]);
   products.value = productRes.data || [];
   parties.value = partyRes.data || [];
@@ -427,6 +664,7 @@ onMounted(async () => {
     selectedReturnBillId.value = String(route.query.billId);
     await loadReturnBillItems();
   }
+  loading.value = false;
 });
 
 watch(
@@ -594,6 +832,48 @@ input[type="number"] {
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
+}
+
+.replacement {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.replacement-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.replacement-body {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.replacement-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.replacement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.replacement-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+  font-weight: 600;
 }
 
 .panel {

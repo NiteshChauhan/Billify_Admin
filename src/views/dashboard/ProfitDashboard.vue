@@ -2,10 +2,11 @@
 import { ref, onMounted, watch } from "vue";
 import http from "@/api/http";
 import ProfitCard from "@/components/ProfitCard.vue";
+import Loader from "@/components/Loader.vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 
-const range = ref("week");
+const range = ref("today");
 const fromDate = ref("");
 const toDate = ref("");
 const loading = ref(false);
@@ -49,7 +50,7 @@ onMounted(fetchReport);
       <input type="date" v-model="toDate" />
     </div>
 
-    <div v-if="loading">Loading...</div>
+    <Loader v-if="loading" />
 
     <ProfitCard v-else :title="range.toUpperCase()" :data="profitData" />
 

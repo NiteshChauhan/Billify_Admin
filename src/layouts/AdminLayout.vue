@@ -108,11 +108,6 @@ const navItems = [
   },
   { label: "Ledger", path: "/ledger", icon: "M4 6h16M4 12h16M4 18h10" },
   {
-    label: "Balance Sheet",
-    path: "/reports/outstanding",
-    icon: "M4 20h16M7 16V8M12 16V4M17 16v-6",
-  },
-  {
     label: "Profit & Loss",
     path: "/reports/profit",
     icon: "M4 16l4-4 3 3 6-6",

@@ -20,7 +20,9 @@
       </div>
     </div>
 
-    <div class="table-wrap">
+    <Loader v-if="loading" />
+
+    <div class="table-wrap" v-else>
       <table>
         <thead>
           <tr>
@@ -83,14 +85,17 @@ import { ref, computed, onMounted, watch } from "vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import Loader from "@/components/Loader.vue";
 
 const search = ref("");
 const typeFilter = ref("all");
 const rowsFromApi = ref([]);
 const summaryFromApi = ref({ totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 });
+const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
+  loading.value = true;
   const fy = getFinancialYearParams();
   const res = await http.get("/reports/ledger-list", {
     params: { ...fy, type: typeFilter.value },
@@ -102,6 +107,7 @@ const load = async () => {
     rowsFromApi.value = res.data?.rows || [];
     summaryFromApi.value = res.data?.summary || { totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 };
   }
+  loading.value = false;
 };
 
 onMounted(load);

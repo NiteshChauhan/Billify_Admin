@@ -36,7 +36,10 @@
           <option value="all">All</option>
           <option value="sale">Sale</option>
           <option value="purchase">Purchase</option>
+          <option value="sale_return">Sale Return</option>
+          <option value="purchase_return">Purchase Return</option>
           <option value="payment">Payment</option>
+          <option value="expense">Expense</option>
           <option value="loan">Loan</option>
         </select>
       </label>
@@ -54,7 +57,9 @@
       </div>
     </div>
 
-    <div class="table-wrap">
+    <Loader v-if="loading" />
+
+    <div class="table-wrap" v-else>
       <table>
         <thead>
           <tr>
@@ -97,6 +102,20 @@
                 v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
                 class="btn ghost"
                 :to="`/purchase/${row.billId}`"
+              >
+                View
+              </router-link>
+              <router-link
+                v-else-if="row.type === 'sale_return'"
+                class="btn ghost"
+                :to="`/sale-return?billId=${row.referenceId || ''}`"
+              >
+                View
+              </router-link>
+              <router-link
+                v-else-if="row.type === 'purchase_return'"
+                class="btn ghost"
+                :to="`/purchase-return?billId=${row.referenceId || ''}`"
               >
                 View
               </router-link>
@@ -275,6 +294,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import Loader from "@/components/Loader.vue";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -287,6 +307,7 @@ const filters = reactive({
 
 const rows = ref([]);
 const bankAccounts = ref([]);
+const loading = ref(false);
 const openingBalanceInput = ref(0);
 const showExpenseModal = ref(false);
 const showBankModal = ref(false);
@@ -333,9 +354,19 @@ const typeLabel = (row) => {
   if (row.type === "loan") {
     return row.loanType === "loan_out" ? "Loan Out" : "Loan In";
   }
-  return ({ sale: "Sale", purchase: "Purchase", payment: "Payment", expense: "Expense" }[row.type] || row.type);
+  return ({
+    sale: "Sale",
+    purchase: "Purchase",
+    sale_return: "Sale Return",
+    purchase_return: "Purchase Return",
+    payment: "Payment",
+    expense: "Expense",
+  }[row.type] || row.type);
 };
 const rowReference = (row) => {
+  if (row.type === "sale_return" || row.type === "purchase_return") {
+    return row.invoiceNo || "-";
+  }
   if (row.type === "expense") {
     return row.note || row.bankAccountName || "-";
   }
@@ -361,6 +392,7 @@ const headerDate = computed(() => {
 });
 
 const load = async () => {
+  loading.value = true;
   const [dailyRes, bankRes] = await Promise.all([
     http.get("/reports/daily", {
       params: {
@@ -387,6 +419,7 @@ const load = async () => {
   };
   openingBalanceInput.value = Number(summary.value.openingBalance || 0);
   bankAccounts.value = bankRes.data || [];
+  loading.value = false;
 };
 
 const loadBalanceHistory = async () => {
@@ -569,7 +602,7 @@ onBeforeUnmount(() => {
 
 .filter-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
   gap: 12px;
   align-items: end;
   background: #fff;
@@ -601,6 +634,8 @@ select {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
 }
 
 .btn {
@@ -678,14 +713,18 @@ tbody tr:hover {
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   margin-top: 16px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .summary-card {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 1100px) {
@@ -707,6 +746,18 @@ tbody tr:hover {
 
   .align-right {
     text-align: left;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions .btn {
+    width: 100%;
+  }
+
+  .opening-edit {
+    flex-wrap: wrap;
   }
 }
 

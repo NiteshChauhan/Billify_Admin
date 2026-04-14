@@ -23,7 +23,9 @@
       </div>
     </div>
 
-    <div class="table-wrap" v-if="rows.length">
+    <Loader v-if="loading" />
+
+    <div class="table-wrap" v-else-if="rows.length">
       <table>
       <thead>
         <tr>
@@ -77,9 +79,11 @@ import { ref, onMounted, computed, onUnmounted } from "vue";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import Loader from "@/components/Loader.vue";
 
 const tab = ref("SUPPLIER");
 const data = ref([]);
+const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
 const switchTab = async (t) => {
@@ -88,6 +92,7 @@ const switchTab = async (t) => {
 };
 
 const load = async () => {
+  loading.value = true;
   const role = tab.value === "SUPPLIER" ? "supplier" : "customer";
   const res = await http.get("/reports/outstanding", {
     params: { ...getFinancialYearParams(), role },
@@ -99,6 +104,7 @@ const load = async () => {
     paid: i.paid ?? i.totalPaid ?? i.totalReceived ?? 0,
     outstanding: i.outstanding ?? 0,
   }));
+  loading.value = false;
 };
 
 onMounted(async () => {

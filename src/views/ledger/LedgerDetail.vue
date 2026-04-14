@@ -1,5 +1,6 @@
 ﻿<template>
-  <div class="ledger-detail" v-if="loaded">
+  <Loader v-if="!loaded" />
+  <div class="ledger-detail" v-else>
     <div class="header">
       <div class="left">
         <router-link class="btn icon" to="/ledger">←</router-link>
@@ -81,6 +82,7 @@ import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import Loader from "@/components/Loader.vue";
 
 const route = useRoute();
 const ledger = ref([]);

@@ -145,7 +145,9 @@
       <span>Total Products: {{ total }}</span>
     </div>
 
-    <table>
+    <Loader v-if="loading" />
+
+    <table v-else>
       <thead>
         <tr>
           <th>Sr No</th>
@@ -334,6 +336,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import Loader from "@/components/Loader.vue";
 
 const rows = ref([]);
 const search = ref("");
@@ -342,6 +345,7 @@ const page = ref(1);
 const limit = ref(20);
 const total = ref(0);
 const totalPages = ref(1);
+const loading = ref(false);
 const capitalSummary = ref({ totalProducts: 0, totalStockQty: 0, totalCapital: 0 });
 
 const showModal = ref(false);
@@ -435,6 +439,7 @@ const stopProgressSimulation = () => {
 };
 
 const load = async () => {
+  loading.value = true;
   const [res, capitalRes] = await Promise.all([
     http.get("/products", {
       params: {
@@ -450,6 +455,7 @@ const load = async () => {
   page.value = Number(res.data?.page || 1);
   totalPages.value = Number(res.data?.totalPages || 1);
   capitalSummary.value = capitalRes.data || { totalProducts: 0, totalStockQty: 0, totalCapital: 0 };
+  loading.value = false;
 };
 
 onMounted(load);
