@@ -37,6 +37,11 @@
 
     <div class="actions">
       <router-link v-if="balance > 0" :to="`/sales/${data._id}/receipt`" class="btn green">+ Receive Payment</router-link>
+      <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
+        <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
       <button class="btn blue" @click="openPDF">Download PDF</button>
       <button class="btn orange" @click="createSaleReturn">Return Items</button>
       <router-link to="/sales" class="btn gray">Back</router-link>
@@ -44,6 +49,10 @@
 
     <div v-if="payments.length" class="payments">
       <h3>Receipts</h3>
+      <label class="payment-toggle">
+        <input v-model="showDeletedPayments" type="checkbox" @change="load" />
+        Show deleted payments
+      </label>
       <table>
         <thead>
           <tr>
@@ -51,6 +60,7 @@
             <th>Mode</th>
             <th>Ref No</th>
             <th>Amount</th>
+            <th>Status</th>
             <th>Bill</th>
           </tr>
         </thead>
@@ -60,10 +70,14 @@
             <td>{{ p.paymentMode }}</td>
             <td>{{ p.referenceNo || "-" }}</td>
             <td>{{ money(p.amount) }}</td>
+            <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
             <td>
               <router-link :to="`/sales/${data._id}`">View Bill</router-link>
               |
               <router-link v-if="isSameDay(data.invoiceDate)" :to="`/sales/edit/${data._id}`">Edit Bill</router-link>
+              |
+              <a v-if="!p.isDeleted" href="#" @click.prevent="deletePayment(p)">Delete Payment</a>
+              <a v-else href="#" @click.prevent="restorePayment(p)">Restore Payment</a>
             </td>
           </tr>
         </tbody>
@@ -107,17 +121,28 @@ import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess } from "@/utils/notifications";
+import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 
 const route = useRoute();
 const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
 const returns = ref([]);
+const showDeletedPayments = ref(false);
+const pdfLanguage = ref(getPdfLanguage());
 const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   data.value = (await http.get(`/sales/${route.params.id}`)).data;
-  payments.value = (await http.get(`/payments/invoice/${route.params.id}`, { params: getFinancialYearParams() })).data;
+  payments.value = (
+    await http.get(`/payments/invoice/${route.params.id}`, {
+      params: {
+        ...getFinancialYearParams(),
+        status: showDeletedPayments.value ? "all" : "active",
+      },
+    })
+  ).data;
   returns.value = (
     await http.get("/returns", { params: { billType: "SALE", billId: route.params.id } })
   ).data || [];
@@ -130,11 +155,26 @@ const formatDate = (d) => new Date(d).toLocaleDateString();
 const isSameDay = (d) => new Date(d).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
 
 const openPDF = () => {
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${route.params.id}?token=${localStorage.getItem("token")}`, "_blank");
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${route.params.id}?token=${localStorage.getItem("token")}&language=${pdfLanguage.value}`, "_blank");
 };
+
+const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
 
 const createSaleReturn = async () => {
   router.push(`/entry?type=sale_return&billId=${data.value._id}`);
+};
+
+const deletePayment = async (payment) => {
+  if (!window.confirm("Delete this payment?")) return;
+  await http.delete(`/payments/${payment._id}`);
+  notifySuccess("Payment deleted successfully.");
+  await load();
+};
+
+const restorePayment = async (payment) => {
+  await http.post(`/payments/${payment._id}/restore`);
+  notifySuccess("Payment restored successfully.");
+  await load();
 };
 </script>
 
@@ -145,6 +185,7 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .totals { margin-top: 15px; text-align: right; }
 .actions { margin-top: 20px; display: flex; gap: 10px; }
+.pdf-select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; }
 .btn { padding: 8px 12px; text-decoration: none; color: white; border-radius: 5px; border: none; }
 .green { background: #16a34a; }
 .blue { background: #2563eb; }

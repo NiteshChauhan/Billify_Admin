@@ -12,7 +12,12 @@
           <option value="supplier">Supplier</option>
           <option value="cash">Cash</option>
           <option value="bank">Bank</option>
-          <option value="credit">Credit</option>
+        </select>
+        <select v-if="typeFilter === 'bank'" v-model="bankAccountId">
+          <option value="">All Banks</option>
+          <option v-for="account in bankAccounts" :key="account._id" :value="account._id">
+            {{ account.accountName }}
+          </option>
         </select>
       </div>
       <div class="right">
@@ -30,6 +35,7 @@
             <th>Party Name</th>
             <th>Total Bill Amount</th>
             <th>Outstanding</th>
+            <th>Remaining Amount</th>
             <th>Paid</th>
             <th>Total Invoices</th>
             <th>Total Transactions</th>
@@ -38,13 +44,16 @@
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="8" class="empty">No records found</td>
+            <td colspan="9" class="empty">No records found</td>
           </tr>
           <tr v-for="(row, idx) in rows" :key="`${row.type}-${row.referenceId}`">
             <td>{{ idx + 1 }}</td>
             <td>{{ row.name }}</td>
             <td class="num">{{ money(row.totalBillAmount) }}</td>
             <td class="num">{{ money(row.outstanding) }}</td>
+            <td class="num" :class="row.remainingAmount < 0 ? 'bad' : 'ok'">
+              {{ money(row.remainingAmount) }}
+            </td>
             <td class="num">{{ money(row.paid) }}</td>
             <td class="num">{{ row.totalInvoices ?? row.totalBills ?? 0 }}</td>
             <td class="num">{{ row.totalTransactions ?? 0 }}</td>
@@ -59,7 +68,7 @@
               <router-link
                 v-else
                 class="btn ghost"
-                :to="`/ledger/type/${row.type}`"
+                :to="bankLedgerLink(row)"
               >
                 View
               </router-link>
@@ -89,6 +98,8 @@ import Loader from "@/components/Loader.vue";
 
 const search = ref("");
 const typeFilter = ref("all");
+const bankAccountId = ref("");
+const bankAccounts = ref([]);
 const rowsFromApi = ref([]);
 const summaryFromApi = ref({ totalBillAmount: 0, totalOutstanding: 0, totalPaid: 0 });
 const loading = ref(false);
@@ -98,7 +109,13 @@ const load = async () => {
   loading.value = true;
   const fy = getFinancialYearParams();
   const res = await http.get("/reports/ledger-list", {
-    params: { ...fy, type: typeFilter.value },
+    params: {
+      ...fy,
+      type: typeFilter.value,
+      ...(typeFilter.value === "bank" && bankAccountId.value
+        ? { bankAccountId: bankAccountId.value }
+        : {}),
+    },
   });
   if (Array.isArray(res.data)) {
     rowsFromApi.value = res.data || [];
@@ -110,9 +127,31 @@ const load = async () => {
   loading.value = false;
 };
 
-onMounted(load);
+const bankLedgerLink = (row) => {
+  if (row.type !== "bank") return `/ledger/type/${row.type}`;
+  const query = row.bankAccountId ? `?bankAccountId=${row.bankAccountId}` : "";
+  return `/ledger/type/bank${query}`;
+};
 
-watch(typeFilter, load);
+watch(typeFilter, (value) => {
+  if (value !== "bank") {
+    bankAccountId.value = "";
+  }
+  load();
+});
+
+watch(bankAccountId, () => {
+  if (typeFilter.value === "bank") {
+    load();
+  }
+});
+
+onMounted(async () => {
+  loading.value = true;
+  const bankRes = await http.get("/bank-accounts");
+  bankAccounts.value = bankRes.data || [];
+  await load();
+});
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -146,6 +185,8 @@ th, td { padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
 th { background: #f9fafb; font-weight: 600; }
 tbody tr:hover { background: #f8fafc; }
 .num { text-align: right; }
+.ok { color: #166534; }
+.bad { color: #b91c1c; }
 .empty { text-align: center; padding: 14px; color: #6b7280; }
 .btn { padding: 8px 12px; border-radius: 6px; text-decoration: none; }
 .primary { background: #2563eb; color: #fff; }

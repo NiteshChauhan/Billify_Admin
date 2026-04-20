@@ -9,6 +9,11 @@
     </div>
 
     <div class="toolbar">
+      <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
+        <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
       <button @click="exportPdf">Export PDF</button>
     </div>
 
@@ -54,6 +59,7 @@ import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 
 const route = useRoute();
 const { formatCurrency: money } = useCurrency();
@@ -61,6 +67,7 @@ const user = ref({ name: "", openingBalance: 0 });
 const ledger = ref([]);
 const closingBalance = ref(0);
 const loaded = ref(false);
+const pdfLanguage = ref(getPdfLanguage());
 
 const load = async () => {
   const userId = route.params.userId || route.params.id;
@@ -91,12 +98,15 @@ const exportPdf = () => {
     ...getFinancialYearParams(),
     role: "all",
     token: localStorage.getItem("token") || "",
+    language: pdfLanguage.value,
   });
   window.open(
     `${import.meta.env.VITE_API_BASE_URL}/users/${userId}/ledger/pdf?${params.toString()}`,
     "_blank",
   );
 };
+
+const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
 </script>
 
 <style scoped>
@@ -104,6 +114,7 @@ const exportPdf = () => {
 .header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .toolbar { margin-bottom: 10px; }
 button { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 8px 10px; }
+.pdf-select { margin-right: 8px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 8px 10px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
 .empty { color: #64748b; padding: 12px 0; }

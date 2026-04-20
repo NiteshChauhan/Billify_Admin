@@ -68,13 +68,15 @@
             <th>Party</th>
             <th>Payment Type</th>
             <th>Reference</th>
+            <th class="num">Dr</th>
+            <th class="num">Cr</th>
             <th class="num">Amount</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!rows.length">
-            <td colspan="7" class="empty">No data found</td>
+            <td colspan="9" class="empty">No data found</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.type}-${row.billId}`">
             <td>{{ formatDate(row.date) }}</td>
@@ -82,6 +84,8 @@
             <td>{{ row.partyName || "Cash" }}</td>
             <td class="capitalize">{{ row.paymentType }}</td>
             <td>{{ rowReference(row) }}</td>
+            <td class="num">{{ money(row.debit || 0) }}</td>
+            <td class="num">{{ money(row.credit || 0) }}</td>
             <td class="num">{{ money(row.amount) }}</td>
             <td>
               <router-link

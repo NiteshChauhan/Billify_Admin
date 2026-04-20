@@ -11,6 +11,13 @@
     <div class="filters">
       <label>From Date <input type="date" v-model="fromDate" /></label>
       <label>To Date <input type="date" v-model="toDate" /></label>
+      <label>Status
+        <select v-model="statusFilter">
+          <option value="active">Active</option>
+          <option value="deleted">Deleted</option>
+          <option value="all">All</option>
+        </select>
+      </label>
       <button class="btn-light" @click="load">Apply</button>
     </div>
 
@@ -26,6 +33,7 @@
             <th>Purchase Number</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
+            <th>Record</th>
             <th>Status</th>
             <th>Days Pending</th>
             <th>Action</th>
@@ -39,16 +47,19 @@
             <td>{{ inv.invoiceNo }}</td>
             <td>{{ money(inv.totalAmount) }}</td>
             <td>{{ money(inv.paidAmount) }}</td>
+            <td><span :class="['pill', inv.isDeleted ? 'DELETED' : 'ACTIVE']">{{ inv.isDeleted ? 'Deleted' : 'Active' }}</span></td>
             <td><span :class="['pill', inv.status]">{{ statusLabel(inv.status) }}</span></td>
             <td>{{ pendingDays(inv) }}</td>
             <td class="actions">
-              <router-link :to="`/purchase/edit/${inv._id}`">Edit</router-link>
+              <router-link v-if="!inv.isDeleted" :to="`/purchase/edit/${inv._id}`">Edit</router-link>
               <router-link :to="`/purchase/${inv._id}`">View</router-link>
-              <button @click="printBill(inv._id)">Print</button>
+              <button v-if="!inv.isDeleted" @click="printBill(inv._id)">Print</button>
+              <button v-if="!inv.isDeleted" @click="deleteInvoice(inv)">Delete</button>
+              <button v-else @click="restoreInvoice(inv)">Restore</button>
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="9" class="empty">No purchase invoices found</td>
+            <td colspan="10" class="empty">No purchase invoices found</td>
           </tr>
         </tbody>
       </table>
@@ -68,10 +79,12 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
+import { getPdfLanguage } from "@/utils/pdfLanguage";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
+const statusFilter = ref("active");
 const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
@@ -89,13 +102,25 @@ const load = async () => {
   const params = { ...getFinancialYearParams() };
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
+  params.status = statusFilter.value;
   rows.value = (await http.get("/purchase", { params })).data || [];
   loading.value = false;
 };
 
+const deleteInvoice = async (invoice) => {
+  if (!window.confirm(`Delete purchase invoice ${invoice.invoiceNo}?`)) return;
+  await http.delete(`/purchase/${invoice._id}`);
+  await load();
+};
+
+const restoreInvoice = async (invoice) => {
+  await http.post(`/purchase/${invoice._id}/restore`);
+  await load();
+};
+
 const printBill = (id) => {
   const token = localStorage.getItem("token") || "";
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${id}?token=${token}`, "_blank");
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${id}?token=${token}&language=${getPdfLanguage()}`, "_blank");
 };
 
 const totals = computed(() => {
@@ -119,6 +144,7 @@ onMounted(load);
 .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; align-items: end; }
 .filters label { display: grid; gap: 6px; font-size: 13px; }
 input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
 .btn-light { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 9px 12px; }
 .table-wrap { overflow: auto; }
 table { width: 100%; min-width: 980px; border-collapse: collapse; }
@@ -127,6 +153,8 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .PAID { background: #dcfce7; color: #166534; }
 .PARTIAL { background: #fef9c3; color: #854d0e; }
 .DUE { background: #fee2e2; color: #991b1b; }
+.ACTIVE { background: #e0f2fe; color: #075985; }
+.DELETED { background: #e5e7eb; color: #374151; }
 .actions { display: flex; gap: 8px; align-items: center; }
 .actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
 .empty { text-align: center; color: #64748b; }

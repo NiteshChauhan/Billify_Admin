@@ -142,6 +142,11 @@ const navItems = [
     path: "/settings",
     icon: "M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8zm8 4l-2.1.7a7.7 7.7 0 0 1-.6 1.4l1 2l-2 2l-2-.9a7.7 7.7 0 0 1-1.4.6L12 20l-1.3-2.1a7.7 7.7 0 0 1-1.4-.6l-2 .9l-2-2l1-2a7.7 7.7 0 0 1-.6-1.4L4 12l2.1-1.3a7.7 7.7 0 0 1 .6-1.4l-1-2l2-2l2 .9a7.7 7.7 0 0 1 1.4-.6L12 4l1.3 2.1a7.7 7.7 0 0 1 1.4.6l2-.9l2 2l-1 2c.26.45.46.92.6 1.4L20 12z",
   },
+  {
+    label: "Logs",
+    path: "/logs",
+    icon: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  },
 ];
 
 const sidebarWidth = computed(() => (isSidebarOpen.value ? "280px" : "88px"));
@@ -160,9 +165,21 @@ const closeMobile = () => {
   }
 };
 
-const handleLogout = () => {
-  auth.logout();
-  router.replace("/login");
+const handleLogout = async () => {
+  try {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL || "https://node-backend-gules-two.vercel.app/api"}/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: auth.token ? `Bearer ${auth.token}` : "",
+      },
+    });
+  } catch (err) {
+    console.warn("Logout logging failed", err);
+  } finally {
+    auth.logout();
+    router.replace("/login");
+  }
 };
 </script>
 

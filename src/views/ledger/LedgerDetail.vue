@@ -13,7 +13,6 @@
           <option value="supplier">Supplier</option>
           <option value="cash">Cash</option>
           <option value="bank">Bank</option>
-          <option value="credit">Credit</option>
         </select>
         <select v-if="type === 'bank'" v-model="bankAccountId" class="type" @change="load">
           <option value="">All Banks</option>
@@ -83,6 +82,7 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
+import { getPdfLanguage } from "@/utils/pdfLanguage";
 
 const route = useRoute();
 const ledger = ref([]);
@@ -156,7 +156,11 @@ const printLedger = () => {
   if (type.value === "bank" && bankAccountId.value) {
     baseParams.bankAccountId = bankAccountId.value;
   }
-  const params = new URLSearchParams({ ...baseParams, token: localStorage.getItem("token") || "" });
+  const params = new URLSearchParams({
+    ...baseParams,
+    token: localStorage.getItem("token") || "",
+    language: getPdfLanguage(),
+  });
   window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
 };
 
@@ -165,9 +169,9 @@ const printBill = (row) => {
   const token = localStorage.getItem("token") || "";
   const base = import.meta.env.VITE_API_BASE_URL;
   if (row.billType === "SALE") {
-    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}`, "_blank");
+    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}&language=${getPdfLanguage()}`, "_blank");
   } else if (row.billType === "PURCHASE") {
-    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}`, "_blank");
+    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&language=${getPdfLanguage()}`, "_blank");
   }
 };
 </script>

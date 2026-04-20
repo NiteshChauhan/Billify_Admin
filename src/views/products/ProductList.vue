@@ -128,6 +128,11 @@
 
     <div class="toolbar">
       <input v-model.trim="search" placeholder="Search Product" />
+      <select v-model="statusFilter" @change="changePage(1)">
+        <option value="active">Active</option>
+        <option value="deleted">Deleted</option>
+        <option value="all">All</option>
+      </select>
       <select v-model="stockFilter">
         <option value="all">All</option>
         <option value="available">Available</option>
@@ -157,7 +162,8 @@
           <th>Price</th>
           <th>Last Sale</th>
           <th>Last Purchase</th>
-          <th>Status</th>
+          <th>Record Status</th>
+          <th>Stock Status</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -170,14 +176,17 @@
           <td>{{ money(p.price) }}</td>
           <td>{{ money(p.lastSalePrice) }}</td>
           <td>{{ money(p.lastPurchasePrice) }}</td>
+          <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
           <td>{{ p.stock > 0 ? "Available" : "Not Available" }}</td>
           <td class="actions">
             <router-link :to="`/products/${p._id}/history`">View</router-link>
-            <button @click="openEdit(p)">Edit</button>
+            <button v-if="!p.isDeleted" @click="openEdit(p)">Edit</button>
+            <button v-if="!p.isDeleted" @click="deleteProduct(p)">Delete</button>
+            <button v-else @click="restoreProduct(p)">Restore</button>
           </td>
         </tr>
         <tr v-if="!filteredRows.length">
-          <td colspan="9" class="empty">No products found</td>
+          <td colspan="10" class="empty">No products found</td>
         </tr>
       </tbody>
     </table>
@@ -340,6 +349,7 @@ import Loader from "@/components/Loader.vue";
 
 const rows = ref([]);
 const search = ref("");
+const statusFilter = ref("active");
 const stockFilter = ref("all");
 const page = ref(1);
 const limit = ref(20);
@@ -445,6 +455,7 @@ const load = async () => {
       params: {
         page: page.value,
         limit: limit.value,
+        status: statusFilter.value,
       },
     }),
     http.get("/products/capital-summary"),
@@ -465,6 +476,7 @@ const filteredRows = computed(() => {
   return rows.value
     .filter((p) => (p.name || "").toLowerCase().includes(q))
     .filter((p) => {
+      if (statusFilter.value === "deleted") return true;
       if (stockFilter.value === "available") return Number(p.stock || 0) > 0;
       if (stockFilter.value === "not_available")
         return Number(p.stock || 0) <= 0;
@@ -649,6 +661,19 @@ const save = async () => {
   }
 
   closeModal();
+  await load();
+};
+
+const deleteProduct = async (product) => {
+  if (!window.confirm(`Delete product "${product.name}"?`)) return;
+  await http.delete(`/products/${product._id}`);
+  notifySuccess("Product deleted successfully.");
+  await load();
+};
+
+const restoreProduct = async (product) => {
+  await http.post(`/products/${product._id}/restore`);
+  notifySuccess("Product restored successfully.");
   await load();
 };
 </script>

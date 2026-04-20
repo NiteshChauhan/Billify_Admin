@@ -65,12 +65,13 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 
 const route = useRoute();
+const router = useRouter();
 const type = computed(() => String(route.params.type || "all").toLowerCase());
 
 const ledger = ref([]);
@@ -80,11 +81,14 @@ const from = ref("");
 const to = ref("");
 const bankAccountId = ref("");
 const bankAccounts = ref([]);
+const selectedBankName = computed(() => {
+  const selected = bankAccounts.value.find((account) => String(account._id) === String(bankAccountId.value));
+  return selected?.accountName || "";
+});
 
 const title = computed(() => {
   if (type.value === "cash") return "Cash Ledger";
-  if (type.value === "bank") return "Bank Ledger";
-  if (type.value === "credit") return "Credit Ledger";
+  if (type.value === "bank") return selectedBankName.value ? `${selectedBankName.value} Ledger` : "Bank Ledger";
   return "Ledger";
 });
 const { formatCurrency: money } = useCurrency();
@@ -122,12 +126,32 @@ const load = async () => {
 watch(type, (value) => {
   if (value !== "bank") {
     bankAccountId.value = "";
+    router.replace({ query: {} });
   }
 });
+
+watch(bankAccountId, (value) => {
+  if (type.value !== "bank") return;
+  router.replace({
+    query: value ? { bankAccountId: value } : {},
+  });
+});
+
+watch(
+  () => route.query.bankAccountId,
+  (value) => {
+    const nextValue = String(value || "");
+    if (nextValue !== String(bankAccountId.value || "")) {
+      bankAccountId.value = nextValue;
+      load();
+    }
+  },
+);
 
 onMounted(async () => {
   const bankRes = await http.get("/bank-accounts");
   bankAccounts.value = bankRes.data || [];
+  bankAccountId.value = String(route.query.bankAccountId || "");
   await load();
 });
 

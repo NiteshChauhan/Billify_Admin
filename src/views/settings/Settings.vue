@@ -54,6 +54,14 @@
           <span>Currency Decimals</span>
           <input v-model.number="companyForm.currencyDecimals" type="number" min="0" max="6" />
         </label>
+        <label class="field">
+          <span>Default PDF Language</span>
+          <select v-model="companyForm.pdfLanguage">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="ar">Arabic</option>
+          </select>
+        </label>
         <label class="field full">
           <span>Address</span>
           <textarea v-model.trim="companyForm.address" rows="4" />
@@ -142,6 +150,34 @@
       </div>
     </section>
 
+    <section v-if="activeTab === 'backup'" class="panel">
+      <div class="panel-head">
+        <h3>Backup & Restore</h3>
+        <span v-if="backupMessage" class="message">{{ backupMessage }}</span>
+      </div>
+      <div class="backup-grid">
+        <div class="backup-card">
+          <h4>Download Backup</h4>
+          <p>Export all current company data into a single backup file.</p>
+          <div class="actions start">
+            <button class="btn primary" @click="downloadBackup">Download Backup</button>
+          </div>
+        </div>
+        <div class="backup-card">
+          <h4>Restore Backup</h4>
+          <p>Only backups from this same company and account can be restored.</p>
+          <label class="field">
+            <span>Select Backup File</span>
+            <input type="file" accept="application/json,.json" @change="handleBackupFile" />
+          </label>
+          <p v-if="selectedBackupName" class="file-name">Selected: {{ selectedBackupName }}</p>
+          <div class="actions start">
+            <button class="btn danger" @click="restoreBackup">Restore Backup</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <div v-if="showBankModal" class="modal-wrap">
       <div class="modal">
         <div class="modal-head">
@@ -174,6 +210,7 @@ import { onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import { syncPdfLanguageFromCompany } from "@/utils/pdfLanguage";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -182,6 +219,7 @@ const tabs = [
   { key: "banks", label: "Bank Accounts" },
   { key: "opening", label: "Opening Balance" },
   { key: "password", label: "Change Password" },
+  { key: "backup", label: "Backup & Restore" },
 ];
 
 const activeTab = ref("company");
@@ -189,8 +227,11 @@ const companyMessage = ref("");
 const bankMessage = ref("");
 const openingMessage = ref("");
 const passwordMessage = ref("");
+const backupMessage = ref("");
 const bankAccounts = ref([]);
 const showBankModal = ref(false);
+const selectedBackupName = ref("");
+const backupPayload = ref(null);
 const { formatCurrency: money, setCurrency, currencyConfig } = useCurrency();
 
 const companyForm = reactive({
@@ -201,6 +242,7 @@ const companyForm = reactive({
   gstNumber: "",
   currencySymbol: "Rs",
   currencyDecimals: 2,
+  pdfLanguage: "en",
 });
 
 const handleCurrencyChange = () => {
@@ -234,10 +276,12 @@ const loadCompany = async () => {
   companyForm.gstNumber = data.gstNumber || "";
   companyForm.currencySymbol = data.currencySymbol || "Rs";
   companyForm.currencyDecimals = Number(data.currencyDecimals ?? currencyConfig[companyForm.currencySymbol] ?? 2);
+  companyForm.pdfLanguage = data.pdfLanguage || "en";
   setCurrency({
     symbol: companyForm.currencySymbol,
     decimals: companyForm.currencyDecimals,
   });
+  syncPdfLanguageFromCompany(data);
 };
 
 const loadBankAccounts = async () => {
@@ -257,11 +301,12 @@ const saveCompany = async () => {
     notifyWarning("Company name is required");
     return;
   }
-  await http.post("/settings/company", { ...companyForm });
+  const { data } = await http.post("/settings/company", { ...companyForm });
   setCurrency({
     symbol: companyForm.currencySymbol,
     decimals: companyForm.currencyDecimals,
   });
+  syncPdfLanguageFromCompany(data);
   companyMessage.value = "Company profile saved";
   notifySuccess("Company profile saved.");
 };
@@ -358,6 +403,57 @@ const changePassword = async () => {
   }
 };
 
+const downloadBackup = async () => {
+  const response = await http.get("/backup/export", { responseType: "blob" });
+  const blob = new Blob([response.data], { type: "application/json" });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  const fileName =
+    response.headers["content-disposition"]?.match(/filename="(.+)"/)?.[1] ||
+    `billing-backup-${today}.json`;
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+  backupMessage.value = "Backup downloaded";
+  notifySuccess("Backup downloaded.");
+};
+
+const handleBackupFile = async (event) => {
+  const file = event.target.files?.[0];
+  selectedBackupName.value = file?.name || "";
+  backupPayload.value = null;
+  if (!file) return;
+
+  try {
+    backupPayload.value = JSON.parse(await file.text());
+    backupMessage.value = "Backup file loaded";
+  } catch (err) {
+    backupMessage.value = "Invalid backup file";
+    notifyWarning("Invalid backup file selected.");
+  }
+};
+
+const restoreBackup = async () => {
+  if (!backupPayload.value) {
+    notifyWarning("Please select a valid backup file first");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "This will replace your current company data with the selected backup. Continue?",
+  );
+  if (!confirmed) return;
+
+  await http.post("/backup/restore", {
+    backup: backupPayload.value,
+    confirmRestore: true,
+  });
+  backupMessage.value = "Backup restored successfully";
+  notifySuccess("Backup restored successfully.");
+  await Promise.all([loadCompany(), loadBankAccounts(), loadOpeningBalance()]);
+};
+
 onMounted(async () => {
   await Promise.all([loadCompany(), loadBankAccounts(), loadOpeningBalance()]);
 });
@@ -447,6 +543,31 @@ onMounted(async () => {
   color: #64748b;
 }
 
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.backup-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.backup-card h4,
+.backup-card p,
+.file-name {
+  margin: 0;
+}
+
+.backup-card p,
+.file-name {
+  color: #64748b;
+}
+
 input,
 textarea {
   width: 100%;
@@ -461,6 +582,10 @@ textarea {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 16px;
+}
+
+.actions.start {
+  justify-content: flex-start;
 }
 
 .btn.primary {
@@ -540,7 +665,8 @@ td {
 
 @media (max-width: 900px) {
   .form-grid,
-  .form-grid.short {
+  .form-grid.short,
+  .backup-grid {
     grid-template-columns: 1fr;
   }
 

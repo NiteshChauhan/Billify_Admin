@@ -32,6 +32,14 @@
         <span>Search</span>
         <input v-model.trim="filters.search" type="text" placeholder="Search note" />
       </label>
+      <label class="field">
+        <span>Status</span>
+        <select v-model="filters.status" @change="loadLoans">
+          <option value="active">Active</option>
+          <option value="deleted">Deleted</option>
+          <option value="all">All</option>
+        </select>
+      </label>
       <div class="actions">
         <button class="btn secondary" @click="resetFilters">Reset</button>
       </div>
@@ -46,13 +54,14 @@
             <th>Amount</th>
             <th>Remaining</th>
             <th>Payment Type</th>
+            <th>Status</th>
             <th>Note</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!filteredLoans.length">
-            <td colspan="7" class="empty">No loan entries found</td>
+            <td colspan="8" class="empty">No loan entries found</td>
           </tr>
           <tr v-for="loan in filteredLoans" :key="loan._id">
             <td>{{ formatDate(loan.date) }}</td>
@@ -60,10 +69,12 @@
             <td>{{ money(loan.amount) }}</td>
             <td>{{ money(loan.remainingAmount) }}</td>
             <td class="capitalize">{{ loan.paymentType }}</td>
+            <td>{{ loan.isDeleted ? "Deleted" : "Active" }}</td>
             <td>{{ loan.note || "-" }}</td>
             <td class="row-actions">
-              <button class="btn ghost" @click="openModal(loan)">Edit</button>
-              <button class="btn danger" @click="deleteLoan(loan)">Delete</button>
+              <button v-if="!loan.isDeleted" class="btn ghost" @click="openModal(loan)">Edit</button>
+              <button v-if="!loan.isDeleted" class="btn danger" @click="deleteLoan(loan)">Delete</button>
+              <button v-else class="btn ghost" @click="restoreLoan(loan)">Restore</button>
             </td>
           </tr>
         </tbody>
@@ -134,6 +145,7 @@ const showModal = ref(false);
 const filters = reactive({
   date: "",
   search: "",
+  status: "active",
 });
 const form = reactive({
   id: "",
@@ -176,6 +188,7 @@ const loadLoans = async () => {
   if (filters.date) {
     params.date = filters.date;
   }
+  params.status = filters.status;
   const [{ data }, bankRes] = await Promise.all([
     http.get("/loans", { params }),
     http.get("/bank-accounts"),
@@ -249,6 +262,13 @@ const deleteLoan = async (loan) => {
 const resetFilters = async () => {
   filters.date = "";
   filters.search = "";
+  filters.status = "active";
+  await loadLoans();
+};
+
+const restoreLoan = async (loan) => {
+  await http.post(`/loans/${loan._id}/restore`);
+  notifySuccess("Loan entry restored successfully.");
   await loadLoans();
 };
 

@@ -17,6 +17,14 @@
         <span>Search</span>
         <input v-model.trim="filters.search" type="text" placeholder="Search title" />
       </label>
+      <label class="field">
+        <span>Status</span>
+        <select v-model="filters.status" @change="loadExpenses">
+          <option value="active">Active</option>
+          <option value="deleted">Deleted</option>
+          <option value="all">All</option>
+        </select>
+      </label>
       <div class="actions">
         <button class="btn secondary" @click="resetFilters">Reset</button>
       </div>
@@ -32,23 +40,26 @@
             <th>Title</th>
             <th>Amount</th>
             <th>Payment Type</th>
+            <th>Status</th>
             <th>Note</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!filteredExpenses.length">
-            <td colspan="6" class="empty">No expenses found</td>
+            <td colspan="7" class="empty">No expenses found</td>
           </tr>
           <tr v-for="expense in filteredExpenses" :key="expense._id">
             <td>{{ formatDate(expense.date) }}</td>
             <td>{{ expense.title }}</td>
             <td>{{ money(expense.amount) }}</td>
             <td class="capitalize">{{ expense.paymentType }}</td>
+            <td>{{ expense.isDeleted ? "Deleted" : "Active" }}</td>
             <td>{{ expense.note || "-" }}</td>
             <td class="row-actions">
-              <button class="btn ghost" @click="openModal(expense)">Edit</button>
-              <button class="btn danger" @click="deleteExpense(expense)">Delete</button>
+              <button v-if="!expense.isDeleted" class="btn ghost" @click="openModal(expense)">Edit</button>
+              <button v-if="!expense.isDeleted" class="btn danger" @click="deleteExpense(expense)">Delete</button>
+              <button v-else class="btn ghost" @click="restoreExpense(expense)">Restore</button>
             </td>
           </tr>
         </tbody>
@@ -117,6 +128,7 @@ const showModal = ref(false);
 const filters = reactive({
   date: "",
   search: "",
+  status: "active",
 });
 
 const form = reactive({
@@ -141,6 +153,7 @@ const loadExpenses = async () => {
   if (filters.date) {
     params.date = filters.date;
   }
+  params.status = filters.status;
   const { data } = await http.get("/expenses", { params });
   expenses.value = data || [];
 };
@@ -219,6 +232,14 @@ const deleteExpense = async (expense) => {
 const resetFilters = async () => {
   filters.date = "";
   filters.search = "";
+  filters.status = "active";
+  await loadExpenses();
+};
+
+const restoreExpense = async (expense) => {
+  await http.post(`/expenses/${expense._id}/restore`);
+  message.value = "Expense restored";
+  notifySuccess("Expense restored successfully.");
   await loadExpenses();
 };
 

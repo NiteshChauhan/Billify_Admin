@@ -36,6 +36,10 @@
 
     <div class="payments" v-if="payments.length">
       <h3>Payments</h3>
+      <label class="payment-toggle">
+        <input v-model="showDeletedPayments" type="checkbox" @change="load" />
+        Show deleted payments
+      </label>
       <table>
         <thead>
           <tr>
@@ -43,6 +47,7 @@
             <th>Mode</th>
             <th>Ref No</th>
             <th>Amount</th>
+            <th>Status</th>
             <th>Bill</th>
           </tr>
         </thead>
@@ -52,10 +57,14 @@
             <td>{{ p.paymentMode }}</td>
             <td>{{ p.referenceNo || "-" }}</td>
             <td>{{ money(p.amount) }}</td>
+            <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
             <td>
               <router-link :to="`/purchase/${data._id}`">View Bill</router-link>
               |
               <router-link v-if="isSameDay(data.invoiceDate)" :to="`/purchase/edit/${data._id}`">Edit Bill</router-link>
+              |
+              <a v-if="!p.isDeleted" href="#" @click.prevent="deletePayment(p)">Delete Payment</a>
+              <a v-else href="#" @click.prevent="restorePayment(p)">Restore Payment</a>
             </td>
           </tr>
         </tbody>
@@ -91,6 +100,11 @@
       </table>
     </div>
 
+    <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
+      <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
+        {{ option.label }}
+      </option>
+    </select>
     <button @click="openPDF">Download PDF</button>
     <button @click="createPurchaseReturn">Return Items</button>
     <router-link class="btn" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
@@ -105,17 +119,28 @@ import http from "@/api/http";
 import { useAuthStore } from "@/stores/authStore";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import { notifySuccess } from "@/utils/notifications";
+import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 
 const route = useRoute();
 const router = useRouter();
 const data = ref({ items: [] });
 const payments = ref([]);
 const returns = ref([]);
+const showDeletedPayments = ref(false);
+const pdfLanguage = ref(getPdfLanguage());
 const { formatCurrency: money } = useCurrency();
 
 const load = async () => {
   data.value = (await http.get(`/purchase/${route.params.id}`)).data;
-  payments.value = (await http.get(`/payments/invoice/${route.params.id}`, { params: getFinancialYearParams() })).data;
+  payments.value = (
+    await http.get(`/payments/invoice/${route.params.id}`, {
+      params: {
+        ...getFinancialYearParams(),
+        status: showDeletedPayments.value ? "all" : "active",
+      },
+    })
+  ).data;
   returns.value = (
     await http.get("/returns", { params: { billType: "PURCHASE", billId: route.params.id } })
   ).data || [];
@@ -129,11 +154,26 @@ const isSameDay = (d) => new Date(d).toISOString().slice(0, 10) === new Date().t
 const auth = useAuthStore();
 const openPDF = () => {
   const token = auth.token;
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${route.params.id}?token=${token}`, "_blank");
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${route.params.id}?token=${token}&language=${pdfLanguage.value}`, "_blank");
 };
+
+const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
 
 const createPurchaseReturn = async () => {
   router.push(`/entry?type=purchase_return&billId=${data.value._id}`);
+};
+
+const deletePayment = async (payment) => {
+  if (!window.confirm("Delete this payment?")) return;
+  await http.delete(`/payments/${payment._id}`);
+  notifySuccess("Payment deleted successfully.");
+  await load();
+};
+
+const restorePayment = async (payment) => {
+  await http.post(`/payments/${payment._id}/restore`);
+  notifySuccess("Payment restored successfully.");
+  await load();
 };
 </script>
 
@@ -143,4 +183,5 @@ const createPurchaseReturn = async () => {
 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .totals { text-align: right; margin-top: 20px; }
+.pdf-select { margin-right: 8px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; }
 </style>

@@ -11,6 +11,13 @@
     <div class="filters">
       <label>From Date <input type="date" v-model="fromDate" /></label>
       <label>To Date <input type="date" v-model="toDate" /></label>
+      <label>Status
+        <select v-model="statusFilter">
+          <option value="active">Active</option>
+          <option value="deleted">Deleted</option>
+          <option value="all">All</option>
+        </select>
+      </label>
       <button class="btn-light" @click="load">Apply</button>
     </div>
 
@@ -24,6 +31,7 @@
           <th>Customer</th>
           <th>Return Number</th>
           <th>Total Amount</th>
+          <th>Record</th>
           <th>Replacement</th>
           <th>Action</th>
         </tr>
@@ -35,13 +43,18 @@
           <td>{{ row.partyId?.name || '-' }}</td>
           <td>{{ row.returnNo || (`SR-${idx + 1}`) }}</td>
           <td>{{ money(row.totalAmount) }}</td>
+          <td><span :class="['pill', row.isDeleted ? 'DELETED' : 'ACTIVE']">{{ row.isDeleted ? 'Deleted' : 'Active' }}</span></td>
           <td>
             <router-link v-if="row.replacementBillId" :to="`/sales/${row.replacementBillId}`">View</router-link>
             <span v-else>-</span>
           </td>
-          <td><router-link :to="`/sales/${row.billId}`">View Bill</router-link></td>
+          <td class="actions">
+            <router-link :to="`/sales/${row.billId}`">View Bill</router-link>
+            <button v-if="!row.isDeleted" @click="deleteReturn(row)">Delete</button>
+            <button v-else @click="restoreReturn(row)">Restore</button>
+          </td>
         </tr>
-        <tr v-if="!rows.length"><td colspan="7" class="empty">No return entries</td></tr>
+        <tr v-if="!rows.length"><td colspan="8" class="empty">No return entries</td></tr>
       </tbody>
     </table>
   </div>
@@ -59,6 +72,7 @@ const route = useRoute();
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
+const statusFilter = ref("active");
 const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
@@ -69,11 +83,23 @@ const load = async () => {
   if (route.query.billId) params.billId = String(route.query.billId);
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
+  params.status = statusFilter.value;
   const res = await http.get("/returns", {
     params,
   });
   rows.value = res.data || [];
   loading.value = false;
+};
+
+const deleteReturn = async (row) => {
+  if (!window.confirm(`Delete return ${row.returnNo || row._id}?`)) return;
+  await http.delete(`/returns/${row._id}`);
+  await load();
+};
+
+const restoreReturn = async (row) => {
+  await http.post(`/returns/${row._id}/restore`);
+  await load();
 };
 
 onMounted(load);
@@ -87,10 +113,16 @@ onMounted(load);
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: end; }
 .filters label { display: grid; gap: 6px; font-size: 13px; }
 input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
+select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; background: #0ea5e9; color: white; text-decoration: none; padding: 10px 14px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
 .btn-light { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 9px 12px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
+.pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+.ACTIVE { background: #e0f2fe; color: #075985; }
+.DELETED { background: #e5e7eb; color: #374151; }
 .empty { text-align: center; color: #64748b; }
 
 @media (max-width: 720px) {
