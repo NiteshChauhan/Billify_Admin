@@ -32,6 +32,14 @@
         <input type="number" min="0" step="0.01" v-model.number="form.openingRate" />
       </div>
 
+      <div class="form-group">
+        <label>Stock Settlement</label>
+        <select v-model="form.stockMode">
+          <option value="flexible">Not Done (Allow Negative Sale)</option>
+          <option value="locked">Done (Block Short Stock Sale)</option>
+        </select>
+      </div>
+
       <!-- Attributes -->
       <div class="form-group">
         <label>Product Attributes</label>
@@ -98,6 +106,7 @@ const form = reactive({
   openingStock: 0,
   price: 0,
   openingRate: 0,
+  stockMode: "flexible",
   attributes: [
     { key: "", value: "" }
   ]
@@ -117,6 +126,7 @@ onMounted(async () => {
       form.openingStock = Number(res.data.openingStock || 0);
       form.price = Number(res.data.price || 0);
       form.openingRate = Number(res.data.openingRate || 0);
+      form.stockMode = String(res.data.stockMode || "flexible");
 
       /* 🔥 Convert attributes object → array */
       form.attributes = Object.entries(res.data.attributes || {}).map(
@@ -154,6 +164,7 @@ const submit = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
       attributes: attributesObj
     };
 
@@ -201,7 +212,8 @@ label {
   margin-bottom: 6px;
 }
 
-input {
+input,
+select {
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;

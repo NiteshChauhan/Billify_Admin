@@ -246,6 +246,13 @@
             step="0.01"
             v-model.number="form.openingRate"
         /></label>
+        <label
+          >Stock Settlement
+          <select v-model="form.stockMode">
+            <option value="flexible">Not Done (Allow Negative Sale)</option>
+            <option value="locked">Done (Block Short Stock Sale)</option>
+          </select>
+        </label>
         <div class="modal-actions">
           <button class="btn btn-primary" @click="save">Save</button>
           <button class="btn-light btn-secondary" @click="closeModal">
@@ -366,6 +373,7 @@ const form = reactive({
   openingStock: 0,
   price: 0,
   openingRate: 0,
+  stockMode: "flexible",
 });
 const fileInput = ref(null);
 const uploadMessage = ref("");
@@ -515,6 +523,7 @@ const openCreate = () => {
   form.openingStock = 0;
   form.price = 0;
   form.openingRate = 0;
+  form.stockMode = "flexible";
   showModal.value = true;
 };
 
@@ -525,6 +534,7 @@ const openEdit = (product) => {
   form.openingStock = Number(product.openingStock || 0);
   form.price = Number(product.price || 0);
   form.openingRate = Number(product.openingRate || 0);
+  form.stockMode = String(product.stockMode || "flexible");
   showModal.value = true;
 };
 
@@ -647,6 +657,7 @@ const save = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
     });
     notifySuccess("Product updated successfully.");
   } else {
@@ -656,6 +667,7 @@ const save = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
     });
     notifySuccess("Product created successfully.");
   }

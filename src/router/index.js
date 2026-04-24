@@ -56,9 +56,9 @@ const routes = [
       { path: "users/create", name: "user-create", component: () => import("@/views/users/UserForm.vue") },
       { path: "users/edit/:id", name: "user-edit", component: () => import("@/views/users/UserForm.vue") },
       { path: "users/:userId/ledger", name: "user-ledger", component: () => import("@/views/users/UserLedger.vue") },
-      { path: "ledger", name: "ledger-list", component: () => import("@/views/ledger/LedgerList.vue") },
-      { path: "ledger/type/:type", name: "ledger-type", component: () => import("@/views/ledger/LedgerTypeDetail.vue") },
-      { path: "ledger/:userId", name: "ledger-detail", component: () => import("@/views/ledger/LedgerDetail.vue") },
+      { path: "ledger", redirect: { name: "dashboard" } },
+      { path: "ledger/type/:type", redirect: { name: "dashboard" } },
+      { path: "ledger/:userId", redirect: { name: "dashboard" } },
       { path: "payments", name: "payments", component: () => import("@/views/payments/Payments.vue") },
 
       { path: "reports/outstanding", component: () => import("@/views/reports/OutstandingReport.vue") },
