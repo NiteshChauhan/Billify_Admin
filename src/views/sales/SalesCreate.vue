@@ -16,6 +16,33 @@
       <option value="credit">Credit</option>
     </select>
 
+    <div class="meta-grid">
+      <label>
+        Invoice Date
+        <input v-model="invoiceDate" type="date" />
+      </label>
+      <label>
+        Salesman
+        <input v-model.trim="salesman" type="text" />
+      </label>
+      <label>
+        LPO No
+        <input v-model.trim="lpoNo" type="text" />
+      </label>
+      <label>
+        Branch
+        <input v-model.trim="customerBranch" type="text" />
+      </label>
+      <label>
+        Attn
+        <input v-model.trim="customerAttn" type="text" />
+      </label>
+      <label>
+        Tel
+        <input v-model.trim="customerTel" type="text" />
+      </label>
+    </div>
+
     <template v-if="paymentType === 'bank'">
       <label>Bank Account</label>
       <select v-model="bankAccountId">
@@ -94,6 +121,12 @@ const bankAccounts = ref([]);
 const vendorId = ref("");
 const paymentType = ref("credit");
 const bankAccountId = ref("");
+const invoiceDate = ref(new Date().toISOString().slice(0, 10));
+const salesman = ref("");
+const lpoNo = ref("");
+const customerBranch = ref("");
+const customerAttn = ref("");
+const customerTel = ref("");
 const items = ref([{ productId: "", quantity: 1, rate: 0, lastRate: null }]);
 const tax = ref(0);
 const paidAmount = ref(0);
@@ -160,6 +193,12 @@ const save = async () => {
     partyId: vendorId.value || null,
     paymentType: paymentType.value,
     bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
+    invoiceDate: invoiceDate.value || null,
+    salesman: salesman.value,
+    lpoNo: lpoNo.value,
+    customerBranch: customerBranch.value,
+    customerAttn: customerAttn.value,
+    customerTel: customerTel.value,
     items: payloadItems,
     tax: tax.value,
     paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
@@ -177,6 +216,13 @@ const save = async () => {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
 }
 
 table {

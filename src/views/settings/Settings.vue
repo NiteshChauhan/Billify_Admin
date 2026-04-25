@@ -29,12 +29,20 @@
           <input v-model.trim="companyForm.name" type="text" />
         </label>
         <label class="field">
-          <span>Mobile</span>
+          <span>Phone / Mobile</span>
           <input v-model.trim="companyForm.mobile" type="text" />
+        </label>
+        <label class="field">
+          <span>WhatsApp</span>
+          <input v-model.trim="companyForm.whatsapp" type="text" />
         </label>
         <label class="field">
           <span>Email</span>
           <input v-model.trim="companyForm.email" type="email" />
+        </label>
+        <label class="field">
+          <span>Company Name (Arabic)</span>
+          <input v-model.trim="companyForm.nameAr" type="text" />
         </label>
         <label class="field">
           <span>GST</span>
@@ -65,6 +73,17 @@
         <label class="field full">
           <span>Address</span>
           <textarea v-model.trim="companyForm.address" rows="4" />
+        </label>
+        <label class="field full">
+          <span>Address (Arabic)</span>
+          <textarea v-model.trim="companyForm.addressAr" rows="4" />
+        </label>
+        <label class="field full toggle-field">
+          <span>Stock Settlement</span>
+          <select v-model="companyForm.stockSettlementEnabled">
+            <option :value="false">OFF - Allow negative stock sale</option>
+            <option :value="true">ON - Block insufficient stock sale</option>
+          </select>
         </label>
       </div>
       <div class="actions">
@@ -236,13 +255,17 @@ const { formatCurrency: money, setCurrency, currencyConfig } = useCurrency();
 
 const companyForm = reactive({
   name: "",
+  nameAr: "",
   mobile: "",
+  whatsapp: "",
   email: "",
   address: "",
+  addressAr: "",
   gstNumber: "",
   currencySymbol: "Rs",
   currencyDecimals: 2,
   pdfLanguage: "en",
+  stockSettlementEnabled: false,
 });
 
 const handleCurrencyChange = () => {
@@ -270,13 +293,17 @@ const bankForm = reactive({
 const loadCompany = async () => {
   const { data } = await http.get("/settings/company");
   companyForm.name = data.name || "";
+  companyForm.nameAr = data.nameAr || "";
   companyForm.mobile = data.mobile || "";
+  companyForm.whatsapp = data.whatsapp || "";
   companyForm.email = data.email || "";
   companyForm.address = data.address || "";
+  companyForm.addressAr = data.addressAr || "";
   companyForm.gstNumber = data.gstNumber || "";
   companyForm.currencySymbol = data.currencySymbol || "Rs";
   companyForm.currencyDecimals = Number(data.currencyDecimals ?? currencyConfig[companyForm.currencySymbol] ?? 2);
   companyForm.pdfLanguage = data.pdfLanguage || "en";
+  companyForm.stockSettlementEnabled = Boolean(data.stockSettlementEnabled);
   setCurrency({
     symbol: companyForm.currencySymbol,
     decimals: companyForm.currencyDecimals,

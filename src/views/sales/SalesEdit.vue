@@ -16,6 +16,33 @@
       <option value="credit">Credit</option>
     </select>
 
+    <div class="meta-grid">
+      <label>
+        Invoice Date
+        <input v-model="invoiceDate" type="date" />
+      </label>
+      <label>
+        Salesman
+        <input v-model.trim="salesman" type="text" />
+      </label>
+      <label>
+        LPO No
+        <input v-model.trim="lpoNo" type="text" />
+      </label>
+      <label>
+        Branch
+        <input v-model.trim="customerBranch" type="text" />
+      </label>
+      <label>
+        Attn
+        <input v-model.trim="customerAttn" type="text" />
+      </label>
+      <label>
+        Tel
+        <input v-model.trim="customerTel" type="text" />
+      </label>
+    </div>
+
     <template v-if="paymentType === 'bank'">
       <label>Bank Account</label>
       <select v-model="bankAccountId">
@@ -117,6 +144,12 @@ const bankAccounts = ref([]);
 const vendorId = ref("");
 const paymentType = ref("credit");
 const bankAccountId = ref("");
+const invoiceDate = ref(new Date().toISOString().slice(0, 10));
+const salesman = ref("");
+const lpoNo = ref("");
+const customerBranch = ref("");
+const customerAttn = ref("");
+const customerTel = ref("");
 const items = ref([]);
 const tax = ref(0);
 const paidAmount = ref(0);
@@ -139,6 +172,12 @@ onMounted(async () => {
 
   tax.value = data.tax || 0;
   paidAmount.value = data.paidAmount || 0;
+  invoiceDate.value = data.invoiceDate ? new Date(data.invoiceDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  salesman.value = data.salesman || "";
+  lpoNo.value = data.lpoNo || "";
+  customerBranch.value = data.customerBranch || "";
+  customerAttn.value = data.customerAttn || "";
+  customerTel.value = data.customerTel || "";
   paymentType.value = (data.paymentType || "credit").toString().toLowerCase();
   bankAccountId.value = data.bankAccountId?._id || data.bankAccountId || "";
 
@@ -216,6 +255,12 @@ const update = async () => {
     partyId: vendorId.value || null,
     paymentType: paymentType.value,
     bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
+    invoiceDate: invoiceDate.value || null,
+    salesman: salesman.value,
+    lpoNo: lpoNo.value,
+    customerBranch: customerBranch.value,
+    customerAttn: customerAttn.value,
+    customerTel: customerTel.value,
     items: payloadItems,
     tax: tax.value,
     paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
@@ -233,6 +278,13 @@ const update = async () => {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
 }
 
 table {

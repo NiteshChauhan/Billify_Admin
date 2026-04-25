@@ -7,8 +7,18 @@
     <form @submit.prevent="submit">
       <!-- Product Name -->
       <div class="form-group">
-        <label>Product Name</label>
+        <label>Product Name (English)</label>
         <input v-model="form.name" required />
+      </div>
+
+      <div class="form-group">
+        <label>Product Name (Arabic)</label>
+        <input v-model="form.nameAr" />
+      </div>
+
+      <div class="form-group">
+        <label>Product Name (Hindi)</label>
+        <input v-model="form.nameHi" />
       </div>
 
       <!-- SKU -->
@@ -30,14 +40,6 @@
       <div class="form-group">
         <label>Opening Rate (Cost)</label>
         <input type="number" min="0" step="0.01" v-model.number="form.openingRate" />
-      </div>
-
-      <div class="form-group">
-        <label>Stock Settlement</label>
-        <select v-model="form.stockMode">
-          <option value="flexible">Not Done (Allow Negative Sale)</option>
-          <option value="locked">Done (Block Short Stock Sale)</option>
-        </select>
       </div>
 
       <!-- Attributes -->
@@ -102,11 +104,12 @@ const isEdit = computed(() => !!route.params.id);
 /* 📦 Form state */
 const form = reactive({
   name: "",
+  nameAr: "",
+  nameHi: "",
   sku: "",
   openingStock: 0,
   price: 0,
   openingRate: 0,
-  stockMode: "flexible",
   attributes: [
     { key: "", value: "" }
   ]
@@ -122,11 +125,12 @@ onMounted(async () => {
       const res = await getProductByIdApi(route.params.id);
 
       form.name = res.data.name;
+      form.nameAr = res.data.nameAr || "";
+      form.nameHi = res.data.nameHi || "";
       form.sku = res.data.sku;
       form.openingStock = Number(res.data.openingStock || 0);
       form.price = Number(res.data.price || 0);
       form.openingRate = Number(res.data.openingRate || 0);
-      form.stockMode = String(res.data.stockMode || "flexible");
 
       /* 🔥 Convert attributes object → array */
       form.attributes = Object.entries(res.data.attributes || {}).map(
@@ -160,11 +164,12 @@ const submit = async () => {
 
     const payload = {
       name: form.name,
+      nameAr: form.nameAr,
+      nameHi: form.nameHi,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
-      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
       attributes: attributesObj
     };
 

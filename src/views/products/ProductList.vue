@@ -224,7 +224,9 @@
             X
           </button>
         </div>
-        <label>Product Name <input v-model="form.name" /></label>
+        <label>Product Name (English) <input v-model="form.name" /></label>
+        <label>Product Name (Arabic) <input v-model="form.nameAr" /></label>
+        <label>Product Name (Hindi) <input v-model="form.nameHi" /></label>
         <label>SKU <input v-model="form.sku" /></label>
         <label
           >Opening Stock
@@ -246,13 +248,6 @@
             step="0.01"
             v-model.number="form.openingRate"
         /></label>
-        <label
-          >Stock Settlement
-          <select v-model="form.stockMode">
-            <option value="flexible">Not Done (Allow Negative Sale)</option>
-            <option value="locked">Done (Block Short Stock Sale)</option>
-          </select>
-        </label>
         <div class="modal-actions">
           <button class="btn btn-primary" @click="save">Save</button>
           <button class="btn-light btn-secondary" @click="closeModal">
@@ -369,11 +364,12 @@ const showModal = ref(false);
 const editId = ref("");
 const form = reactive({
   name: "",
+  nameAr: "",
+  nameHi: "",
   sku: "",
   openingStock: 0,
   price: 0,
   openingRate: 0,
-  stockMode: "flexible",
 });
 const fileInput = ref(null);
 const uploadMessage = ref("");
@@ -519,22 +515,24 @@ const changePage = async (nextPage) => {
 const openCreate = () => {
   editId.value = "";
   form.name = "";
+  form.nameAr = "";
+  form.nameHi = "";
   form.sku = "";
   form.openingStock = 0;
   form.price = 0;
   form.openingRate = 0;
-  form.stockMode = "flexible";
   showModal.value = true;
 };
 
 const openEdit = (product) => {
   editId.value = product._id;
   form.name = product.name || "";
+  form.nameAr = product.nameAr || "";
+  form.nameHi = product.nameHi || "";
   form.sku = product.sku || "";
   form.openingStock = Number(product.openingStock || 0);
   form.price = Number(product.price || 0);
   form.openingRate = Number(product.openingRate || 0);
-  form.stockMode = String(product.stockMode || "flexible");
   showModal.value = true;
 };
 
@@ -653,21 +651,23 @@ const save = async () => {
   if (editId.value) {
     await http.put(`/products/${editId.value}`, {
       name: form.name,
+      nameAr: form.nameAr,
+      nameHi: form.nameHi,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
-      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
     });
     notifySuccess("Product updated successfully.");
   } else {
     await http.post("/products", {
       name: form.name,
+      nameAr: form.nameAr,
+      nameHi: form.nameHi,
       sku: form.sku,
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
-      stockMode: form.stockMode === "locked" ? "locked" : "flexible",
     });
     notifySuccess("Product created successfully.");
   }
