@@ -169,9 +169,9 @@ const printBill = (row) => {
   const token = localStorage.getItem("token") || "";
   const base = import.meta.env.VITE_API_BASE_URL;
   if (row.billType === "SALE") {
-    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}&language=${getPdfLanguage()}`, "_blank");
+    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
   } else if (row.billType === "PURCHASE") {
-    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&language=${getPdfLanguage()}`, "_blank");
+    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
   }
 };
 </script>

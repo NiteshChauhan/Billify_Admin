@@ -155,7 +155,7 @@ const formatDate = (d) => new Date(d).toLocaleDateString();
 const isSameDay = (d) => new Date(d).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
 
 const openPDF = () => {
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${route.params.id}?token=${localStorage.getItem("token")}&language=${pdfLanguage.value}`, "_blank");
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${route.params.id}?token=${localStorage.getItem("token")}&languageMode=${encodeURIComponent(pdfLanguage.value)}`, "_blank");
 };
 
 const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);

@@ -120,7 +120,7 @@ const restoreInvoice = async (invoice) => {
 
 const printBill = (id) => {
   const token = localStorage.getItem("token") || "";
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${id}?token=${token}&language=${getPdfLanguage()}`, "_blank");
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/purchase/${id}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
 };
 
 const totals = computed(() => {

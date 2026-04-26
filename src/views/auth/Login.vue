@@ -43,8 +43,8 @@ const login = async () => {
 
   <button @click="login">Login</button>
 
-  <p style="margin-top:10px">
+  <!--<p style="margin-top:10px">
     New company?
     <router-link to="/register">Create account</router-link>
-  </p>
+  </p>-->
 </template>
