@@ -89,15 +89,13 @@
                 <th>Party</th>
                 <th>Payment Type</th>
                 <th>Reference</th>
-                <th class="num">Dr</th>
-                <th class="num">Cr</th>
-                <th class="num">Amount</th>
+                <th class="num">Credit</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!creditRows.length">
-                <td colspan="9" class="empty">No data found</td>
+                <td colspan="7" class="empty">No data found</td>
               </tr>
               <tr v-for="row in creditRows" :key="rowKey(row)">
                 <td>{{ formatDate(row.date) }}</td>
@@ -105,59 +103,59 @@
                 <td>{{ row.partyName || "Cash" }}</td>
                 <td class="capitalize">{{ row.paymentType }}</td>
                 <td>{{ rowReference(row) }}</td>
-                <td class="num">{{ money(row.debit || 0) }}</td>
                 <td class="num">{{ money(row.credit || 0) }}</td>
-                <td class="num">{{ money(row.amount) }}</td>
                 <td>
-                  <router-link
-                    v-if="row.type === 'sale' || row.type === 'purchase'"
-                    class="btn ghost"
-                    :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
-                  >
-                    View
-                  </router-link>
-                  <router-link
-                    v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
-                    class="btn ghost"
-                    :to="`/sales/${row.billId}`"
-                  >
-                    View
-                  </router-link>
-                  <router-link
-                    v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
-                    class="btn ghost"
-                    :to="`/purchase/${row.billId}`"
-                  >
-                    View
-                  </router-link>
-                  <router-link
-                    v-else-if="row.type === 'sale_return'"
-                    class="btn ghost"
-                    :to="`/sale-return?billId=${row.referenceId || ''}`"
-                  >
-                    View
-                  </router-link>
-                  <router-link
-                    v-else-if="row.type === 'purchase_return'"
-                    class="btn ghost"
-                    :to="`/purchase-return?billId=${row.referenceId || ''}`"
-                  >
-                    View
-                  </router-link>
-                  <template v-else>
-                    <template v-if="row.type === 'expense'">
-                      <button class="btn ghost" @click="editExpense(row)">Edit</button>
-                      <button class="btn danger" @click="deleteExpense(row)">Delete</button>
-                    </template>
+                  <div class="action-cell">
                     <router-link
-                      v-else-if="row.type === 'loan'"
+                      v-if="row.type === 'sale' || row.type === 'purchase'"
                       class="btn ghost"
-                      to="/loans"
+                      :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
                     >
                       View
                     </router-link>
-                    <span v-else>-</span>
-                  </template>
+                    <router-link
+                      v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
+                      class="btn ghost"
+                      :to="`/sales/${row.billId}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
+                      class="btn ghost"
+                      :to="`/purchase/${row.billId}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'sale_return'"
+                      class="btn ghost"
+                      :to="`/sale-return?billId=${row.referenceId || ''}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'purchase_return'"
+                      class="btn ghost"
+                      :to="`/purchase-return?billId=${row.referenceId || ''}`"
+                    >
+                      View
+                    </router-link>
+                    <template v-else>
+                      <template v-if="row.type === 'expense'">
+                        <button class="btn ghost" @click="editExpense(row)">Edit</button>
+                        <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                      </template>
+                      <router-link
+                        v-else-if="row.type === 'loan'"
+                        class="btn ghost"
+                        to="/loans"
+                      >
+                        View
+                      </router-link>
+                      <span v-else>-</span>
+                    </template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -186,16 +184,16 @@
               <tr>
                 <th>Date</th>
                 <th>Type</th>
-                <th>Party / Title</th>
+                <th>Party</th>
                 <th>Payment Type</th>
                 <th>Reference</th>
-                <th class="num">Dr</th>
-                <th class="num">Amount</th>
+                <th class="num">Debit</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!debitRows.length">
-                <td colspan="6" class="empty">No debit entries</td>
+                <td colspan="7" class="empty">No debit entries</td>
               </tr>
               <tr v-for="row in debitRows" :key="rowKey(row)">
                 <td>{{ formatDate(row.date) }}</td>
@@ -204,7 +202,59 @@
                 <td class="capitalize">{{ row.paymentType }}</td>
                 <td>{{ rowReference(row) }}</td>
                 <td class="num">{{ money(row.debit || 0) }}</td>
-                <td class="num">{{ money(row.amount || 0) }}</td>
+                <td>
+                  <div class="action-cell">
+                    <router-link
+                      v-if="row.type === 'sale' || row.type === 'purchase'"
+                      class="btn ghost"
+                      :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
+                      class="btn ghost"
+                      :to="`/sales/${row.billId}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
+                      class="btn ghost"
+                      :to="`/purchase/${row.billId}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'sale_return'"
+                      class="btn ghost"
+                      :to="`/sale-return?billId=${row.referenceId || ''}`"
+                    >
+                      View
+                    </router-link>
+                    <router-link
+                      v-else-if="row.type === 'purchase_return'"
+                      class="btn ghost"
+                      :to="`/purchase-return?billId=${row.referenceId || ''}`"
+                    >
+                      View
+                    </router-link>
+                    <template v-else>
+                      <template v-if="row.type === 'expense'">
+                        <button class="btn ghost" @click="editExpense(row)">Edit</button>
+                        <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                      </template>
+                      <router-link
+                        v-else-if="row.type === 'loan'"
+                        class="btn ghost"
+                        to="/loans"
+                      >
+                        View
+                      </router-link>
+                      <span v-else>-</span>
+                    </template>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -863,6 +913,12 @@ select {
   background: #fff1f2;
   border-color: #ef4444;
   color: #b91c1c;
+}
+
+.action-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .daily-layout {
