@@ -5,7 +5,6 @@
     >
       <div class="brand-row">
         <h2 v-if="isSidebarOpen">Billing Admin</h2>
-        <!-- <button class="icon-btn" @click="toggleSidebar">{{ isSidebarOpen ? '<' : '>' }}</button>-->
       </div>
 
       <FinancialYearSelect v-if="isSidebarOpen" />
@@ -58,6 +57,24 @@
       <header class="topbar">
         <button class="icon-btn" @click="toggleSidebar">&#9776;</button>
         <h3>Billing</h3>
+        <div class="topbar-spacer" />
+        <label class="company-switcher">
+          <span>Branch</span>
+          <select
+            :value="selectedBranchId"
+            :disabled="companyLoading || branchOptions.length <= 1"
+            @change="handleBranchChange"
+          >
+            <option
+              v-for="branch in branchOptions"
+              :key="branch._id"
+              :value="branch._id"
+            >
+              {{ branch.branchCode ? `${branch.branchName} (${branch.branchCode})` : branch.branchName }}
+            </option>
+          </select>
+        </label>
+        <div class="company-chip">{{ currentBranchLabel }}</div>
       </header>
       <main class="content"><router-view /></main>
     </div>
@@ -68,7 +85,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import FinancialYearSelect from "@/components/FinancialYearSelect.vue";
@@ -79,6 +96,7 @@ const auth = useAuthStore();
 
 const isSidebarOpen = ref(true);
 const mobileOpen = ref(false);
+const companyLoading = ref(false);
 
 const navItems = [
   { label: "Dashboard", path: "/", icon: "M3 12l9-9 9 9M5 10v10h14V10" },
@@ -101,6 +119,8 @@ const navItems = [
   },
   { label: "Entry", path: "/entry", icon: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" },
   { label: "Stock", path: "/stock", icon: "M3 7h18M5 7v12h14V7" },
+  { label: "Stock Transfer", path: "/stock-transfers", icon: "M4 7h9M10 3l4 4-4 4M20 17h-9M14 13l-4 4 4 4" },
+  { label: "Cash Merge", path: "/collection-transfers", icon: "M4 12h16M12 4l8 8-8 8" },
   {
     label: "Users",
     path: "/users",
@@ -149,6 +169,14 @@ const navItems = [
 ];
 
 const sidebarWidth = computed(() => (isSidebarOpen.value ? "280px" : "88px"));
+const branchOptions = computed(() => auth.branches || []);
+const selectedBranchId = computed(() => auth.selectedBranchId || "");
+const currentBranchLabel = computed(() => {
+  if (auth.currentBranch?.branchCode) {
+    return `${auth.currentBranch.branchName} (${auth.currentBranch.branchCode})`;
+  }
+  return auth.currentBranch?.branchName || "Select Branch";
+});
 
 const toggleSidebar = () => {
   if (window.innerWidth <= 960) {
@@ -161,6 +189,16 @@ const toggleSidebar = () => {
 const closeMobile = () => {
   if (window.innerWidth <= 960) {
     mobileOpen.value = false;
+  }
+};
+
+const handleBranchChange = async (event) => {
+  const nextBranchId = String(event.target.value || "");
+  const previousBranchId = String(auth.selectedBranchId || "");
+  if (!nextBranchId || nextBranchId === previousBranchId) return;
+  auth.selectBranch(nextBranchId);
+  if (previousBranchId !== nextBranchId) {
+    window.location.reload();
   }
 };
 
@@ -180,6 +218,16 @@ const handleLogout = async () => {
     router.replace("/login");
   }
 };
+
+onMounted(async () => {
+  if (auth.token && (!auth.branches.length || !auth.selectedBranchId)) {
+    try {
+      await auth.refreshSessionContext();
+    } catch (err) {
+      console.warn("Failed to refresh auth session context", err);
+    }
+  }
+});
 </script>
 
 <style scoped>
@@ -340,6 +388,38 @@ const handleLogout = async () => {
   margin: 0;
 }
 
+.topbar-spacer {
+  flex: 1;
+}
+
+.company-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.company-switcher select {
+  min-width: 210px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.company-chip {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .content {
   padding: 20px;
 }
@@ -363,6 +443,20 @@ const handleLogout = async () => {
 
   .sidebar.open {
     left: 0;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-spacer {
+    display: none;
+  }
+
+  .company-switcher,
+  .company-switcher select,
+  .company-chip {
+    width: 100%;
   }
 }
 </style>

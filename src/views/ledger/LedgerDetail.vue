@@ -159,6 +159,7 @@ const printLedger = () => {
   const params = new URLSearchParams({
     ...baseParams,
     token: localStorage.getItem("token") || "",
+    branchId: localStorage.getItem("selectedBranchId") || "",
     language: getPdfLanguage(),
   });
   window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
@@ -167,11 +168,12 @@ const printLedger = () => {
 const printBill = (row) => {
   if (!row.billId || !row.billType) return;
   const token = localStorage.getItem("token") || "";
+  const branchId = localStorage.getItem("selectedBranchId") || "";
   const base = import.meta.env.VITE_API_BASE_URL;
   if (row.billType === "SALE") {
-    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
+    window.open(`${base}/invoice-pdf/sales/${row.billId}?token=${token}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
   } else if (row.billType === "PURCHASE") {
-    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
+    window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
   }
 };
 </script>

@@ -48,6 +48,10 @@
       </label>
       <button class="btn btn-primary" @click="leftOpen = true">Select Party</button>
       <button class="btn btn-secondary" @click="rightOpen = true">Select Product</button>
+      <label class="field-inline compact checkbox-inline">
+        <input v-model="showCost" type="checkbox" />
+        <span>Show Cost / Purchase Price</span>
+      </label>
       <div class="selected">Party: {{ selectedParty?.name || 'Not selected' }}</div>
     </div>
 
@@ -58,6 +62,10 @@
           {{ bill.invoiceNo }} - {{ formatDate(bill.invoiceDate) }} - {{ bill.partyId?.name }}
         </option>
       </select>
+      <label class="field-inline compact checkbox-inline">
+        <input v-model="showCost" type="checkbox" />
+        <span>Show Cost / Purchase Price</span>
+      </label>
     </div>
 
     <div class="table-wrap">
@@ -69,6 +77,7 @@
             <th>Available Stock</th>
             <th>{{ isReturn ? 'Remaining Qty' : 'Quantity' }}</th>
             <th>Price</th>
+            <th v-if="showCost">Cost</th>
             <th>Total Amount</th>
             <th></th>
           </tr>
@@ -93,6 +102,7 @@
                 Last rate: {{ money(row.lastRate) }}
               </div>
             </td>
+            <td v-if="showCost">{{ money(getProductCost(row.productId)) }}</td>
             <td>
               <input
                 v-if="isSaleOrPurchase"
@@ -160,11 +170,12 @@
             <thead>
               <tr>
                 <th>Product</th>
-                <th>Available Stock</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>Total</th>
-                <th></th>
+            <th>Available Stock</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th v-if="showCost">Cost</th>
+            <th>Total</th>
+            <th></th>
               </tr>
             </thead>
             <tbody>
@@ -197,6 +208,7 @@
                     Last rate: {{ money(row.lastRate) }}
                   </div>
                 </td>
+                <td v-if="showCost">{{ money(getProductCost(row.productId)) }}</td>
                 <td>
                   <input
                     type="number"
@@ -290,6 +302,7 @@ const bankAccountId = ref("");
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
 const loading = ref(false);
+const showCost = ref(false);
 
 const returnBills = ref([]);
 const selectedReturnBillId = ref("");
@@ -339,6 +352,11 @@ const netDifference = computed(() => roundCurrency(replacementTotal.value - tota
 const decimalStep = computed(() => (Number(currencyDecimals.value || 2) >= 3 ? "0.001" : "0.01"));
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
+
+const getProductCost = (productId) => {
+  const product = products.value.find((entry) => String(entry._id) === String(productId));
+  return Number(product?.lastPurchaseRate || product?.openingRate || 0);
+};
 
 const updateRowFromRate = (row) => {
   const quantity = Number(row.quantity || 0);
@@ -734,6 +752,13 @@ watch(
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.checkbox-inline {
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn {

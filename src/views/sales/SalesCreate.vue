@@ -53,12 +53,18 @@
       </select>
     </template>
 
+    <label class="toggle-inline">
+      <input v-model="showCost" type="checkbox" />
+      Show Cost / Purchase Price
+    </label>
+
     <table>
       <thead>
         <tr>
           <th>Product</th>
           <th>Qty</th>
           <th>Rate</th>
+          <th v-if="showCost">Cost</th>
           <th>Amount</th>
           <th></th>
         </tr>
@@ -79,6 +85,7 @@
             <input type="number" v-model.number="i.rate" />
             <small v-if="i.lastRate !== null" class="hint">Last rate: {{ money(i.lastRate) }}</small>
           </td>
+          <td v-if="showCost">{{ money(getProductCost(i.productId)) }}</td>
           <td>{{ money(i.quantity * i.rate || 0) }}</td>
           <td>
             <button @click="remove(idx)">X</button>
@@ -128,6 +135,7 @@ const customerBranch = ref("");
 const customerAttn = ref("");
 const customerTel = ref("");
 const items = ref([{ productId: "", quantity: 1, rate: 0, lastRate: null }]);
+const showCost = ref(false);
 const tax = ref(0);
 const paidAmount = ref(0);
 
@@ -142,6 +150,11 @@ const vendorUsers = computed(() =>
 );
 
 const add = () => items.value.push({ productId: "", quantity: 1, rate: 0, lastRate: null });
+
+const getProductCost = (productId) => {
+  const product = products.value.find((entry) => String(entry._id) === String(productId));
+  return Number(product?.lastPurchaseRate || product?.openingRate || 0);
+};
 
 const onProductChange = async (item) => {
   item.lastRate = null;
@@ -228,6 +241,14 @@ const save = async () => {
 table {
   width: 100%;
   margin: 10px 0;
+}
+
+.toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  font-weight: 600;
 }
 
 input,

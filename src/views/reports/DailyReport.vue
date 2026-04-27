@@ -64,6 +64,7 @@
       <div class="toolbar-actions">
         <button class="btn secondary" @click="openBalanceHistory">View Balance History</button>
         <button class="btn secondary" @click="showBankModal = true">Add Bank Account</button>
+        <router-link class="btn secondary" to="/collection-transfers">Collection Transfer</router-link>
         <button class="btn primary" @click="openAddExpense">Add Expense</button>
       </div>
     </section>
@@ -95,10 +96,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!rows.length">
+              <tr v-if="!creditRows.length">
                 <td colspan="9" class="empty">No data found</td>
               </tr>
-              <tr v-for="row in rows" :key="rowKey(row)">
+              <tr v-for="row in creditRows" :key="rowKey(row)">
                 <td>{{ formatDate(row.date) }}</td>
                 <td>{{ typeLabel(row) }}</td>
                 <td>{{ row.partyName || "Cash" }}</td>
@@ -162,6 +163,13 @@
             </tbody>
           </table>
         </div>
+
+        <div class="expense-summary">
+          <div class="mini-total">
+            <span>Daily Book Total (Cr)</span>
+            <strong>{{ money(totalCredits) }}</strong>
+          </div>
+        </div>
       </section>
 
       <aside class="expense-panel">
@@ -177,19 +185,25 @@
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Title</th>
+                <th>Type</th>
+                <th>Party / Title</th>
                 <th>Payment Type</th>
+                <th>Reference</th>
+                <th class="num">Dr</th>
                 <th class="num">Amount</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!expenseRows.length">
-                <td colspan="4" class="empty">No expense entries</td>
+              <tr v-if="!debitRows.length">
+                <td colspan="6" class="empty">No debit entries</td>
               </tr>
-              <tr v-for="row in expenseRows" :key="rowKey(row)">
+              <tr v-for="row in debitRows" :key="rowKey(row)">
                 <td>{{ formatDate(row.date) }}</td>
+                <td>{{ typeLabel(row) }}</td>
                 <td>{{ row.partyName || row.note || "-" }}</td>
                 <td class="capitalize">{{ row.paymentType }}</td>
+                <td>{{ rowReference(row) }}</td>
+                <td class="num">{{ money(row.debit || 0) }}</td>
                 <td class="num">{{ money(row.amount || 0) }}</td>
               </tr>
             </tbody>
@@ -198,8 +212,8 @@
 
         <div class="expense-summary">
           <div class="mini-total">
-            <span>Total Expenses</span>
-            <strong>{{ money(summary.totalExpenses) }}</strong>
+            <span>Expenses Total (Dr)</span>
+            <strong>{{ money(totalDebits) }}</strong>
           </div>
           <div class="mini-total">
             <span>Total Bank</span>
@@ -245,6 +259,14 @@
         <div class="summary-box">
           <span>Loan Out</span>
           <strong>{{ money(summary.totalLoanOut) }}</strong>
+        </div>
+        <div class="summary-box">
+          <span>Collection In</span>
+          <strong>{{ money(summary.totalCollectionTransferIn || 0) }}</strong>
+        </div>
+        <div class="summary-box">
+          <span>Collection Out</span>
+          <strong>{{ money(summary.totalCollectionTransferOut || 0) }}</strong>
         </div>
         <div class="summary-box">
           <span>Total Bank</span>
@@ -450,6 +472,8 @@ const typeLabel = (row) => {
   if (row.type === "loan") {
     return row.loanType === "loan_out" ? "Loan Out" : "Loan In";
   }
+  if (row.type === "collection_transfer_in") return "Collection Transfer In";
+  if (row.type === "collection_transfer_out") return "Collection Transfer Out";
   return ({
     sale: "Sale",
     purchase: "Purchase",
@@ -472,6 +496,9 @@ const rowReference = (row) => {
   if (row.type === "payment") {
     return row.referenceNo || (row.invoiceType === "OPENING" ? "Opening Balance" : row.bankAccountName || "-");
   }
+  if (row.type === "collection_transfer_in" || row.type === "collection_transfer_out") {
+    return row.referenceNo || row.note || "-";
+  }
   return row.bankAccountName || "-";
 };
 
@@ -487,7 +514,21 @@ const headerDate = computed(() => {
       });
 });
 
-const expenseRows = computed(() => rows.value.filter((row) => row.type === "expense"));
+const creditRows = computed(() =>
+  rows.value.filter((row) => Number(row.credit || 0) > 0),
+);
+
+const debitRows = computed(() =>
+  rows.value.filter((row) => Number(row.debit || 0) > 0),
+);
+
+const totalCredits = computed(() =>
+  creditRows.value.reduce((sum, row) => sum + Number(row.credit || 0), 0),
+);
+
+const totalDebits = computed(() =>
+  debitRows.value.reduce((sum, row) => sum + Number(row.debit || 0), 0),
+);
 
 const totalBank = computed(() =>
   rows.value.reduce((sum, row) => {
@@ -925,11 +966,11 @@ tbody tr:hover {
 }
 
 .primary-row {
-  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .secondary-row {
-  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .summary-box {

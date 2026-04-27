@@ -42,6 +42,11 @@
       </div>
     </div>
 
+    <label class="toggle-inline">
+      <input v-model="showCost" type="checkbox" />
+      Show Cost / Purchase Price
+    </label>
+
     <table class="items">
       <thead>
         <tr>
@@ -49,6 +54,7 @@
           <th>Stock</th>
           <th>Qty</th>
           <th>Rate</th>
+          <th v-if="showCost">Cost</th>
           <th>Amount</th>
           <th></th>
         </tr>
@@ -76,6 +82,9 @@
           <td>
             <input type="number" min="0" v-model.number="i.rate" />
             <small v-if="i.lastRate !== null" class="hint">Last rate: {{ money(i.lastRate) }}</small>
+          </td>
+          <td v-if="showCost" class="num">
+            {{ money(getProductCost(i.productId)) }}
           </td>
 
           <td class="num">
@@ -129,6 +138,7 @@ const { formatCurrency: money } = useCurrency();
 const users = ref([]);
 const products = ref([]);
 const bankAccounts = ref([]);
+const showCost = ref(false);
 
 const form = reactive({
   invoiceNo: "",
@@ -160,6 +170,11 @@ onMounted(async () => {
 const supplierUsers = computed(() =>
   users.value.filter((user) => hasUserRole(user, "supplier")),
 );
+
+const getProductCost = (productId) => {
+  const product = products.value.find((entry) => String(entry._id) === String(productId));
+  return Number(product?.lastPurchaseRate || product?.openingRate || 0);
+};
 
 const onProductChange = async (item) => {
   if (!item.productId) return;
@@ -259,6 +274,14 @@ label {
   font-weight: 600;
   margin-bottom: 5px;
   display: block;
+}
+
+.toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 
 input,

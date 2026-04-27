@@ -20,6 +20,10 @@ http.interceptors.request.use(
       config.headers.Authorization = `Bearer ${auth.token}`;
     }
 
+    if (auth.selectedBranchId) {
+      config.headers["X-Branch-Id"] = auth.selectedBranchId;
+    }
+
     return config;
   },
   (error) => Promise.reject(error),

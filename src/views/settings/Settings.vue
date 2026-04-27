@@ -91,6 +91,40 @@
       </div>
     </section>
 
+    <section v-if="activeTab === 'branches'" class="panel">
+      <div class="panel-head">
+        <h3>Branches / Shops / Warehouses</h3>
+        <button class="btn primary" @click="openBranchModal()">Add Branch</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Code</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Default</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!branches.length">
+              <td colspan="6" class="empty">No branches found</td>
+            </tr>
+            <tr v-for="branch in branches" :key="branch._id">
+              <td>{{ branch.branchName }}</td>
+              <td>{{ branch.branchCode || "-" }}</td>
+              <td class="capitalize">{{ branch.type }}</td>
+              <td class="capitalize">{{ branch.status }}</td>
+              <td>{{ branch.isDefault ? "Yes" : "No" }}</td>
+              <td><button class="btn ghost" @click="openBranchModal(branch)">Edit</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section v-if="activeTab === 'banks'" class="panel">
       <div class="panel-head">
         <h3>Bank Accounts</h3>
@@ -221,6 +255,57 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showBranchModal" class="modal-wrap">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>{{ branchForm.id ? "Edit Branch" : "Add Branch" }}</h3>
+          <button class="close-btn" @click="closeBranchModal">X</button>
+        </div>
+        <label class="field">
+          <span>Branch Name</span>
+          <input v-model.trim="branchForm.branchName" type="text" />
+        </label>
+        <label class="field">
+          <span>Branch Code</span>
+          <input v-model.trim="branchForm.branchCode" type="text" />
+        </label>
+        <label class="field">
+          <span>Type</span>
+          <select v-model="branchForm.type">
+            <option value="shop">Shop</option>
+            <option value="warehouse">Warehouse</option>
+            <option value="branch">Branch</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Phone</span>
+          <input v-model.trim="branchForm.phone" type="text" />
+        </label>
+        <label class="field">
+          <span>Address</span>
+          <textarea v-model.trim="branchForm.address" rows="3" />
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select v-model="branchForm.status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Default</span>
+          <select v-model="branchForm.isDefault">
+            <option :value="true">Yes</option>
+            <option :value="false">No</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button class="btn primary" @click="saveBranch">Save</button>
+          <button class="btn secondary" @click="closeBranchModal">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -230,11 +315,14 @@ import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import { syncPdfLanguageFromCompany } from "@/utils/pdfLanguage";
+import { useAuthStore } from "@/stores/authStore";
 
 const today = new Date().toISOString().slice(0, 10);
+const auth = useAuthStore();
 
 const tabs = [
   { key: "company", label: "Company Profile" },
+  { key: "branches", label: "Branches" },
   { key: "banks", label: "Bank Accounts" },
   { key: "opening", label: "Opening Balance" },
   { key: "password", label: "Change Password" },
@@ -248,7 +336,9 @@ const openingMessage = ref("");
 const passwordMessage = ref("");
 const backupMessage = ref("");
 const bankAccounts = ref([]);
+const branches = ref([]);
 const showBankModal = ref(false);
+const showBranchModal = ref(false);
 const selectedBackupName = ref("");
 const backupPayload = ref(null);
 const { formatCurrency: money, setCurrency, currencyConfig } = useCurrency();
@@ -289,6 +379,16 @@ const bankForm = reactive({
   accountNumber: "",
   balance: 0,
 });
+const branchForm = reactive({
+  id: "",
+  branchName: "",
+  branchCode: "",
+  type: "shop",
+  address: "",
+  phone: "",
+  status: "active",
+  isDefault: false,
+});
 
 const loadCompany = async () => {
   const { data } = await http.get("/settings/company");
@@ -314,6 +414,11 @@ const loadCompany = async () => {
 const loadBankAccounts = async () => {
   const { data } = await http.get("/bank-accounts");
   bankAccounts.value = data || [];
+};
+
+const loadBranches = async () => {
+  const { data } = await http.get("/branches");
+  branches.value = data || [];
 };
 
 const loadOpeningBalance = async () => {
@@ -353,6 +458,47 @@ const closeBankModal = () => {
   bankForm.accountName = "";
   bankForm.accountNumber = "";
   bankForm.balance = 0;
+};
+
+const openBranchModal = (branch = null) => {
+  branchForm.id = branch?._id || "";
+  branchForm.branchName = branch?.branchName || "";
+  branchForm.branchCode = branch?.branchCode || "";
+  branchForm.type = branch?.type || "shop";
+  branchForm.address = branch?.address || "";
+  branchForm.phone = branch?.phone || "";
+  branchForm.status = branch?.status || "active";
+  branchForm.isDefault = Boolean(branch?.isDefault);
+  showBranchModal.value = true;
+};
+
+const closeBranchModal = () => {
+  showBranchModal.value = false;
+  branchForm.id = "";
+  branchForm.branchName = "";
+  branchForm.branchCode = "";
+  branchForm.type = "shop";
+  branchForm.address = "";
+  branchForm.phone = "";
+  branchForm.status = "active";
+  branchForm.isDefault = false;
+};
+
+const saveBranch = async () => {
+  if (!branchForm.branchName) {
+    notifyWarning("Branch name is required");
+    return;
+  }
+  const payload = { ...branchForm };
+  if (branchForm.id) {
+    await http.put(`/branches/${branchForm.id}`, payload);
+    notifySuccess("Branch updated.");
+  } else {
+    await http.post("/branches", payload);
+    notifySuccess("Branch created.");
+  }
+  closeBranchModal();
+  await Promise.all([loadBranches(), auth.refreshSessionContext()]);
 };
 
 const saveBankAccount = async () => {
@@ -482,7 +628,7 @@ const restoreBackup = async () => {
 };
 
 onMounted(async () => {
-  await Promise.all([loadCompany(), loadBankAccounts(), loadOpeningBalance()]);
+  await Promise.all([loadCompany(), loadBankAccounts(), loadOpeningBalance(), loadBranches()]);
 });
 </script>
 

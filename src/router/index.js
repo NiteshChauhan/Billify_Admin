@@ -49,6 +49,8 @@ const routes = [
       { path: "entry", name: "entry", component: () => import("@/views/entry/EntryPage.vue") },
 
       { path: "stock", name: "stock", component: () => import("@/views/stock/StockList.vue") },
+      { path: "stock-transfers", name: "stock-transfers", component: () => import("@/views/transfers/StockTransfers.vue") },
+      { path: "collection-transfers", name: "collection-transfers", component: () => import("@/views/transfers/CollectionTransfers.vue") },
       { path: "stock-ledger/:productId", name: "stock-ledger", component: () => import("@/views/stock/StockLedger.vue") },
       { path: "opening-stock/:productId", name: "opening-stock", component: () => import("@/views/stock/OpeningStock.vue") },
 

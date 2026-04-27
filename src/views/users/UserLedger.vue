@@ -98,6 +98,7 @@ const exportPdf = () => {
     ...getFinancialYearParams(),
     role: "all",
     token: localStorage.getItem("token") || "",
+    branchId: localStorage.getItem("selectedBranchId") || "",
     language: pdfLanguage.value,
   });
   window.open(

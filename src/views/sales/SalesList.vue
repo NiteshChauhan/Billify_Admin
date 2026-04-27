@@ -121,7 +121,8 @@ const restoreInvoice = async (invoice) => {
 
 const printBill = (id) => {
   const token = localStorage.getItem("token") || "";
-  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${id}?token=${token}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
+  const branchId = localStorage.getItem("selectedBranchId") || "";
+  window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${id}?token=${token}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
 };
 
 const totals = computed(() => {
