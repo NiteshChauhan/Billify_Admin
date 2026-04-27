@@ -111,6 +111,7 @@ export const useAuthStore = defineStore("auth", {
         fetch(
           `${import.meta.env.VITE_API_BASE_URL || "https://node-backend-gules-two.vercel.app/api"}/auth/session`,
           {
+            credentials: "include",
             headers: {
               Authorization: `Bearer ${this.token}`,
               ...(this.selectedBranchId ? { "X-Branch-Id": this.selectedBranchId } : {}),
