@@ -2,15 +2,22 @@ import axios from "axios";
 import { useAuthStore } from "@/stores/authStore";
 import { notifyError, parseApiError } from "@/utils/notifications";
 
+const apiBaseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://node-backend-gules-two.vercel.app/api";
+
 const http = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ||
-    "https://node-backend-gules-two.vercel.app/api",
+  baseURL: apiBaseURL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+if (typeof window !== "undefined" && !window.__billingApiBaseLogged) {
+  console.log("[API] baseURL", apiBaseURL);
+  window.__billingApiBaseLogged = true;
+}
 
 /* ================= REQUEST INTERCEPTOR ================= */
 http.interceptors.request.use(

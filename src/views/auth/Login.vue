@@ -21,6 +21,10 @@ const login = async () => {
     });
 
     auth.login(res.data);
+    console.log("[AUTH] login success", {
+      hasToken: Boolean(res.data?.token),
+      selectedBranchId: res.data?.selectedBranchId || res.data?.user?.selectedBranchId || null,
+    });
     router.push("/");
   } catch (err) {
     message.value =
