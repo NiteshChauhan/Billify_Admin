@@ -5,7 +5,7 @@
 
       <div class="actions">
         <button @click="openPDF">Download PDF</button>
-        <router-link to="/purchase">Back</router-link>
+        <router-link class="btn-secondary" to="/purchase">Back</router-link>
       </div>
     </div>
 
@@ -93,6 +93,17 @@ const openPDF = () => {
   color: white;
   padding: 6px 10px;
   margin-right: 10px;
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-decoration: none;
 }
 .block {
   margin: 15px 0;

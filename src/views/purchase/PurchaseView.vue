@@ -100,15 +100,17 @@
       </table>
     </div>
 
-    <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
-      <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
-    <button @click="openPDF">Download PDF</button>
-    <button @click="createPurchaseReturn">Return Items</button>
-    <router-link class="btn" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
-    <router-link to="/purchase">Back</router-link>
+    <div class="actions">
+      <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
+        <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+      <button class="btn blue" @click="openPDF">Download PDF</button>
+      <button class="btn orange" @click="createPurchaseReturn">Return Items</button>
+      <router-link class="btn green" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
+      <router-link class="btn gray" to="/purchase">Back</router-link>
+    </div>
   </div>
 </template>
 
@@ -185,4 +187,10 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .totals { text-align: right; margin-top: 20px; }
 .pdf-select { margin-right: 8px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; }
+.actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { padding: 8px 12px; text-decoration: none; color: white; border-radius: 5px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.green { background: #16a34a; }
+.blue { background: #2563eb; }
+.orange { background: #f59e0b; }
+.gray { background: #6b7280; }
 </style>
