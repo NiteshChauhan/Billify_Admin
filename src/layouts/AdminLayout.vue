@@ -137,6 +137,11 @@ const navItems = [
     icon: "M6 6h12v12H6zM9 9h6v6H9",
   },
   {
+    label: "Ledger",
+    path: "/ledger",
+    icon: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h6",
+  },
+  {
     label: "Day Book",
     path: "/reports/daily",
     icon: "M4 5h16v14H4zM8 3v4M16 3v4M4 10h16",
