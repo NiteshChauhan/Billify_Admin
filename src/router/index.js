@@ -29,6 +29,7 @@ const routes = [
       { path: "sales", name: "sales-list", component: () => import("@/views/sales/SalesList.vue") },
       { path: "sales/create", component: () => import("@/views/sales/SalesCreate.vue") },
       { path: "sales/edit/:id", component: () => import("@/views/sales/SalesEdit.vue") },
+      { path: "sales/replacement-bills", name: "replacement-bills", component: () => import("@/views/sales/ReplacementBills.vue") },
       { path: "sales/:id", component: () => import("@/views/sales/SalesView.vue") },
       { path: "sales/:id/receipt", name: "sales-receipt", component: () => import("@/views/sales/SalesReceipt.vue") },
 
