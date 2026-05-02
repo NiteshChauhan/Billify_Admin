@@ -48,6 +48,10 @@
           <span>GST</span>
           <input v-model.trim="companyForm.gstNumber" type="text" />
         </label>
+        <label class="field toggle-check">
+          <span>Enable GST</span>
+          <input v-model="companyForm.gstEnabled" type="checkbox" />
+        </label>
         <label class="field">
           <span>Currency</span>
           <select v-model="companyForm.currencySymbol" @change="handleCurrencyChange">
@@ -316,6 +320,7 @@ import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import { syncPdfLanguageFromCompany } from "@/utils/pdfLanguage";
 import { useAuthStore } from "@/stores/authStore";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 
 const today = new Date().toISOString().slice(0, 10);
 const auth = useAuthStore();
@@ -342,6 +347,7 @@ const showBranchModal = ref(false);
 const selectedBackupName = ref("");
 const backupPayload = ref(null);
 const { formatCurrency: money, setCurrency, currencyConfig } = useCurrency();
+const { applyCompanySettings } = useCompanySettings();
 
 const companyForm = reactive({
   name: "",
@@ -352,6 +358,7 @@ const companyForm = reactive({
   address: "",
   addressAr: "",
   gstNumber: "",
+  gstEnabled: true,
   currencySymbol: "Rs",
   currencyDecimals: 2,
   pdfLanguage: "en",
@@ -400,6 +407,7 @@ const loadCompany = async () => {
   companyForm.address = data.address || "";
   companyForm.addressAr = data.addressAr || "";
   companyForm.gstNumber = data.gstNumber || "";
+  companyForm.gstEnabled = data.gstEnabled !== false;
   companyForm.currencySymbol = data.currencySymbol || "Rs";
   companyForm.currencyDecimals = Number(data.currencyDecimals ?? currencyConfig[companyForm.currencySymbol] ?? 2);
   companyForm.pdfLanguage = data.pdfLanguage || "en";
@@ -409,6 +417,7 @@ const loadCompany = async () => {
     decimals: companyForm.currencyDecimals,
   });
   syncPdfLanguageFromCompany(data);
+  applyCompanySettings(data);
 };
 
 const loadBankAccounts = async () => {
@@ -439,6 +448,7 @@ const saveCompany = async () => {
     decimals: companyForm.currencyDecimals,
   });
   syncPdfLanguageFromCompany(data);
+  applyCompanySettings(data);
   companyMessage.value = "Company profile saved";
   notifySuccess("Company profile saved.");
 };
@@ -704,6 +714,11 @@ onMounted(async () => {
 .field {
   display: grid;
   gap: 6px;
+}
+
+.toggle-check input {
+  width: auto;
+  justify-self: start;
 }
 
 .field.full {

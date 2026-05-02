@@ -29,7 +29,7 @@
 
     <div class="totals">
       <div>Subtotal: {{ money(data.subtotal) }}</div>
-      <div>Tax: {{ money(data.tax) }}</div>
+      <div v-if="gstEnabled">Tax: {{ money(data.tax) }}</div>
       <div><strong>Total: {{ money(data.totalAmount) }}</strong></div>
       <div>Paid: {{ money(data.paidAmount) }}</div>
       <div><strong>Balance: {{ money(balance) }}</strong></div>
@@ -121,6 +121,7 @@ import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess } from "@/utils/notifications";
 import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 
@@ -132,6 +133,7 @@ const returns = ref([]);
 const showDeletedPayments = ref(false);
 const pdfLanguage = ref(getPdfLanguage());
 const { formatCurrency: money } = useCurrency();
+const { gstEnabled } = useCompanySettings();
 
 const load = async () => {
   data.value = (await http.get(`/sales/${route.params.id}`)).data;

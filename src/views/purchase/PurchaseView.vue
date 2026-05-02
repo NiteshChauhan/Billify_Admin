@@ -29,7 +29,7 @@
 
     <div class="totals">
       <div>Subtotal: {{ money(data.subtotal) }}</div>
-      <div>Tax: {{ money(data.tax) }}</div>
+      <div v-if="gstEnabled">Tax: {{ money(data.tax) }}</div>
       <div><strong>Total: {{ money(data.totalAmount) }}</strong></div>
       <div>Paid: {{ money(data.paidAmount) }}</div>
     </div>
@@ -100,16 +100,16 @@
       </table>
     </div>
 
-    <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
-      <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
-    <div class="page-actions">
-      <button class="btn secondary" @click="openPDF">Download PDF</button>
-      <button class="btn secondary" @click="createPurchaseReturn">Return Items</button>
-      <router-link class="btn primary" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
-      <router-link class="btn secondary" to="/purchase">Back</router-link>
+    <div class="actions">
+      <select v-model="pdfLanguage" class="pdf-select" @change="savePdfLanguage">
+        <option v-for="option in pdfLanguageOptions" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+      <button class="btn blue" @click="openPDF">Download PDF</button>
+      <button class="btn orange" @click="createPurchaseReturn">Return Items</button>
+      <router-link class="btn green" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
+      <router-link class="btn gray" to="/purchase">Back</router-link>
     </div>
   </div>
 </template>
@@ -121,6 +121,7 @@ import http from "@/api/http";
 import { useAuthStore } from "@/stores/authStore";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess } from "@/utils/notifications";
 import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 
@@ -132,6 +133,7 @@ const returns = ref([]);
 const showDeletedPayments = ref(false);
 const pdfLanguage = ref(getPdfLanguage());
 const { formatCurrency: money } = useCurrency();
+const { gstEnabled } = useCompanySettings();
 
 const load = async () => {
   data.value = (await http.get(`/purchase/${route.params.id}`)).data;
@@ -201,4 +203,10 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .totals { text-align: right; margin-top: 20px; }
 .pdf-select { margin-right: 8px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; }
+.actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { padding: 8px 12px; text-decoration: none; color: white; border-radius: 5px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.green { background: #16a34a; }
+.blue { background: #2563eb; }
+.orange { background: #f59e0b; }
+.gray { background: #6b7280; }
 </style>

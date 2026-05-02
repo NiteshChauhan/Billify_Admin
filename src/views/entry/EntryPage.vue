@@ -21,7 +21,7 @@
 
     <Loader v-if="loading" />
 
-    <div class="type-grid" v-else>
+    <div class="type-grid" v-else-if="!isEditMode">
       <label v-for="opt in typeOptions" :key="opt.value" class="type-option">
         <input type="radio" v-model="transactionType" :value="opt.value" @change="onTypeChange" />
         {{ opt.label }}
@@ -238,8 +238,17 @@
     </div>
 
     <div class="foot">
+      <span v-if="isSaleOrPurchase">Subtotal: {{ money(subtotalAmount) }}</span>
+      <label v-if="isSaleOrPurchase && gstEnabled" class="field-inline compact tax-field">
+        <span>GST / Tax</span>
+        <input type="number" min="0" :step="decimalStep" v-model.number="taxAmount" />
+      </label>
+      <label v-if="isSaleOrPurchase && paymentType === 'credit'" class="field-inline compact tax-field">
+        <span>Paid Amount</span>
+        <input type="number" min="0" :step="decimalStep" v-model.number="paidAmount" />
+      </label>
       <strong>Total Bill Amount: {{ money(totalAmount) }}</strong>
-      <button class="btn btn-success" @click="save">Save</button>
+      <button class="btn btn-success" @click="save">{{ isEditMode ? "Update" : "Save" }}</button>
     </div>
 
     <aside :class="['panel left', { open: leftOpen }]">
@@ -279,11 +288,16 @@ import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
 
 const route = useRoute();
 const router = useRouter();
+const props = defineProps({
+  mode: { type: String, default: "create" },
+  fixedType: { type: String, default: "" },
+});
 
 const typeOptions = [
   { value: "sale", label: "Sale" },
@@ -292,13 +306,15 @@ const typeOptions = [
   { value: "purchase_return", label: "Purchase Return" },
 ];
 
-const transactionType = ref((route.query.type || "sale").toString());
+const transactionType = ref((props.fixedType || route.query.type || "sale").toString());
 const rows = ref([]);
 const products = ref([]);
 const parties = ref([]);
 const selectedParty = ref(null);
 const paymentType = ref("credit");
 const bankAccountId = ref("");
+const paidAmount = ref(0);
+const taxAmount = ref(0);
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
 const loading = ref(false);
@@ -319,7 +335,9 @@ const rightOpen = ref(false);
 const partySearch = ref("");
 const productSearch = ref("");
 const { formatCurrency: money, roundCurrency, currencyDecimals } = useCurrency();
+const { gstEnabled, ensureCompanySettingsLoaded } = useCompanySettings();
 
+const isEditMode = computed(() => props.mode === "edit");
 const isSaleOrPurchase = computed(() => ["sale", "purchase"].includes(transactionType.value));
 const isReturn = computed(() => !isSaleOrPurchase.value);
 const isAutoBillNumber = computed(() => ["sale", "sale_return"].includes(transactionType.value));
@@ -337,8 +355,11 @@ const filteredProducts = computed(() => {
   return products.value.filter((p) => (p.name || "").toLowerCase().includes(q));
 });
 
-const totalAmount = computed(() =>
+const subtotalAmount = computed(() =>
   roundCurrency(rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0)),
+);
+const totalAmount = computed(() =>
+  roundCurrency(subtotalAmount.value + (isSaleOrPurchase.value && gstEnabled.value ? Number(taxAmount.value || 0) : 0)),
 );
 const replacementTotal = computed(() =>
   roundCurrency(
@@ -521,9 +542,49 @@ const loadReturnBillItems = async () => {
     }));
 };
 
+const loadEditInvoice = async () => {
+  if (!isEditMode.value || !isSaleOrPurchase.value) return;
+  const endpoint = transactionType.value === "purchase" ? `/purchase/${route.params.id}` : `/sales/${route.params.id}`;
+  const { data } = await http.get(endpoint);
+
+  selectedParty.value =
+    parties.value.find((party) => String(party._id) === String(data.partyId?._id || data.partyId || data.supplierId || data.vendorId || "")) ||
+    data.partyId ||
+    null;
+  paymentType.value = String(data.paymentType || "credit").toLowerCase();
+  bankAccountId.value = data.bankAccountId?._id || data.bankAccountId || "";
+  paidAmount.value = Number(data.paidAmount || 0);
+  taxAmount.value = gstEnabled.value ? Number(data.tax || 0) : 0;
+  invoiceDate.value = data.invoiceDate ? new Date(data.invoiceDate).toISOString().slice(0, 10) : invoiceDate.value;
+  billNumber.value = data.invoiceNo || "";
+
+  rows.value = await Promise.all((data.items || []).map(async (item) => {
+    const productId = String(item.productId?._id || item.productId || "");
+    const product = products.value.find((entry) => String(entry._id) === productId);
+    let availableStock = null;
+    try {
+      const stockRes = await http.get(`/stock/${productId}`);
+      availableStock = stockRes.data?.stock ?? null;
+    } catch (err) {
+      availableStock = null;
+    }
+    return {
+      productId,
+      productName: item.productId?.name || product?.name || item.productName || "-",
+      quantity: Number(item.quantity || 0),
+      rate: Number(item.rate || 0),
+      totalAmount: roundCurrency(Number(item.amount ?? Number(item.quantity || 0) * Number(item.rate || 0))),
+      lastRate: null,
+      availableStock,
+    };
+  }));
+};
+
 const onTypeChange = async () => {
   rows.value = [];
   selectedParty.value = null;
+  paidAmount.value = 0;
+  taxAmount.value = 0;
   selectedReturnBillId.value = "";
   createReplacement.value = false;
   replacementRows.value = [];
@@ -570,28 +631,42 @@ const save = async () => {
   }
 
   if (transactionType.value === "sale") {
-    await http.post("/sales", {
+    const payload = {
       partyId: selectedParty.value?._id || null,
       paymentType: paymentType.value,
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
-    });
-    notifySuccess("Sale saved successfully.");
+      tax: gstEnabled.value ? Number(taxAmount.value || 0) : 0,
+      paidAmount: paymentType.value === "credit" ? Number(paidAmount.value || 0) : Number(totalAmount.value || 0),
+    };
+    if (isEditMode.value) {
+      await http.put(`/sales/${route.params.id}`, payload);
+    } else {
+      await http.post("/sales", payload);
+    }
+    notifySuccess(isEditMode.value ? "Sale updated successfully." : "Sale saved successfully.");
     router.push("/sales");
     return;
   }
 
   if (transactionType.value === "purchase") {
-    await http.post("/purchase", {
+    const payload = {
       partyId: selectedParty.value?._id || null,
       paymentType: paymentType.value,
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceNo: billNumber.value.trim(),
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
-    });
-    notifySuccess("Purchase saved successfully.");
+      tax: gstEnabled.value ? Number(taxAmount.value || 0) : 0,
+      paidAmount: paymentType.value === "credit" ? Number(paidAmount.value || 0) : Number(totalAmount.value || 0),
+    };
+    if (isEditMode.value) {
+      await http.put(`/purchase/${route.params.id}`, payload);
+    } else {
+      await http.post("/purchase", payload);
+    }
+    notifySuccess(isEditMode.value ? "Purchase updated successfully." : "Purchase saved successfully.");
     router.push("/purchase");
     return;
   }
@@ -672,12 +747,17 @@ const save = async () => {
 
 onMounted(async () => {
   loading.value = true;
+  await ensureCompanySettingsLoaded();
   const [productRes, partyRes, bankRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts")]);
   products.value = productRes.data || [];
   parties.value = partyRes.data || [];
   bankAccounts.value = bankRes.data || [];
-  await loadNextBillNo();
-  await loadReturnBills();
+  if (isEditMode.value) {
+    await loadEditInvoice();
+  } else {
+    await loadNextBillNo();
+    await loadReturnBills();
+  }
   if (route.query.billId && isReturn.value) {
     selectedReturnBillId.value = String(route.query.billId);
     await loadReturnBillItems();
@@ -688,7 +768,7 @@ onMounted(async () => {
 watch(
   () => route.query.type,
   (type) => {
-    if (type && type !== transactionType.value) {
+    if (!isEditMode.value && type && type !== transactionType.value) {
       transactionType.value = String(type);
       onTypeChange();
     }

@@ -4,8 +4,8 @@
       <h2>Purchase Invoice</h2>
 
       <div class="actions">
-        <button class="btn primary" @click="openPDF">Download PDF</button>
-        <router-link class="btn secondary" to="/purchase">Back</router-link>
+        <button @click="openPDF">Download PDF</button>
+        <router-link class="btn-secondary" to="/purchase">Back</router-link>
       </div>
     </div>
 
@@ -41,7 +41,7 @@
 
     <div class="totals">
       <div>Subtotal: {{ money(invoice.subtotal) }}</div>
-      <div>Tax: {{ money(invoice.tax) }}</div>
+      <div v-if="gstEnabled">Tax: {{ money(invoice.tax) }}</div>
       <div><strong>Total: {{ money(invoice.totalAmount) }}</strong></div>
       <div>Paid: {{ money(invoice.paidAmount) }}</div>
       <div>Status: {{ invoice.status }}</div>
@@ -54,9 +54,11 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 
 const route = useRoute();
 const { formatCurrency: money } = useCurrency();
+const { gstEnabled } = useCompanySettings();
 
 const invoice = ref({});
 const company = ref({});
@@ -91,30 +93,16 @@ const openPDF = () => {
 .actions button {
   margin-right: 10px;
 }
-.actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.btn {
+.btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  border-radius: 8px;
   border: 1px solid #cbd5e1;
-  text-decoration: none;
-  cursor: pointer;
-  font-weight: 600;
-}
-.btn.primary {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
-}
-.btn.secondary {
   background: #fff;
-  color: #2563eb;
+  color: #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-decoration: none;
 }
 .block {
   margin: 15px 0;

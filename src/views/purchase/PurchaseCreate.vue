@@ -103,7 +103,7 @@
     <div class="totals">
       <div>Subtotal: {{ money(subtotal) }}</div>
 
-      <div>
+      <div v-if="gstEnabled">
         Tax:
         <input type="number" v-model.number="form.tax" />
       </div>
@@ -130,10 +130,12 @@ import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
 import { useRouter } from "vue-router";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const router = useRouter();
 const { formatCurrency: money } = useCurrency();
+const { gstEnabled, ensureCompanySettingsLoaded } = useCompanySettings();
 
 const users = ref([]);
 const products = ref([]);
@@ -162,6 +164,7 @@ function createItem() {
 }
 
 onMounted(async () => {
+  await ensureCompanySettingsLoaded();
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
   bankAccounts.value = (await http.get("/bank-accounts")).data || [];
@@ -201,7 +204,7 @@ const subtotal = computed(() =>
   form.items.reduce((t, i) => t + i.quantity * i.rate, 0),
 );
 
-const total = computed(() => subtotal.value + form.tax);
+const total = computed(() => subtotal.value + (gstEnabled.value ? form.tax : 0));
 
 const save = async () => {
   if (!form.invoiceNo?.trim()) {
@@ -242,7 +245,7 @@ const save = async () => {
     paymentType: form.paymentType,
     bankAccountId: form.paymentType === "bank" ? form.bankAccountId : null,
     items: payloadItems,
-    tax: Number(form.tax || 0),
+    tax: gstEnabled.value ? Number(form.tax || 0) : 0,
     paidAmount: form.paymentType === "credit" ? Number(form.paidAmount || 0) : Number(total.value || 0),
     partyId: form.supplierId || null,
   });

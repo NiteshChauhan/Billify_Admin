@@ -96,8 +96,10 @@
 
     <button @click="add">+ Add Item</button>
 
-    <label>Tax</label>
-    <input type="number" v-model.number="tax" />
+    <template v-if="gstEnabled">
+      <label>GST / Tax</label>
+      <input type="number" v-model.number="tax" />
+    </template>
 
     <label>Paid Amount (optional)</label>
     <input type="number" v-model.number="paidAmount" :disabled="paymentType !== 'credit'" />
@@ -116,10 +118,12 @@ import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import UserSelect from "@/components/UserSelect.vue";
 import { useCurrency } from "@/composables/useCurrency";
+import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const router = useRouter();
 const { formatCurrency: money } = useCurrency();
+const { gstEnabled, ensureCompanySettingsLoaded } = useCompanySettings();
 
 const users = ref([]);
 const products = ref([]);
@@ -140,6 +144,7 @@ const tax = ref(0);
 const paidAmount = ref(0);
 
 onMounted(async () => {
+  await ensureCompanySettingsLoaded();
   users.value = (await getUsersApi()).data;
   products.value = (await http.get("/products")).data;
   bankAccounts.value = (await http.get("/bank-accounts")).data || [];
@@ -171,7 +176,7 @@ const onProductChange = async (item) => {
 const remove = (i) => items.value.splice(i, 1);
 
 const total = computed(
-  () => items.value.reduce((t, i) => t + i.quantity * i.rate, 0) + tax.value,
+  () => items.value.reduce((t, i) => t + i.quantity * i.rate, 0) + (gstEnabled.value ? tax.value : 0),
 );
 
 const save = async () => {
@@ -213,7 +218,7 @@ const save = async () => {
     customerAttn: customerAttn.value,
     customerTel: customerTel.value,
     items: payloadItems,
-    tax: tax.value,
+    tax: gstEnabled.value ? tax.value : 0,
     paidAmount: paymentType.value === "credit" ? paidAmount.value : total.value,
   });
 
