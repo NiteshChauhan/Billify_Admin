@@ -47,7 +47,7 @@
     </table>
 
     <div v-else class="empty">No ledger entries</div>
-    <router-link to="/users">Back</router-link>
+    <router-link class="btn secondary back-link" to="/users">Back</router-link>
   </div>
 
   <div v-else class="loading">Loading ledger...</div>
@@ -115,6 +115,22 @@ const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
 .header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .toolbar { margin-bottom: 10px; }
 button { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 8px 10px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn.secondary {
+  background: #fff;
+  color: #2563eb;
+}
+.back-link { margin-top: 12px; }
 .pdf-select { margin-right: 8px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 8px 10px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }

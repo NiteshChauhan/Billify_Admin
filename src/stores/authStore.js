@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 const SELECTED_BRANCH_KEY = "selectedBranchId";
+const MAIN_BRANCH_ALIASES = new Set(["0", "main", "main_branch", "main-branch"]);
 
 function getStoredUser() {
   try {
@@ -16,7 +17,9 @@ function getStoredUser() {
 }
 
 function getStoredSelectedBranchId() {
-  return localStorage.getItem(SELECTED_BRANCH_KEY) || null;
+  const value = localStorage.getItem(SELECTED_BRANCH_KEY) || null;
+  if (!value) return null;
+  return MAIN_BRANCH_ALIASES.has(String(value).trim().toLowerCase()) ? null : value;
 }
 
 export const useAuthStore = defineStore("auth", {

@@ -105,10 +105,12 @@
         {{ option.label }}
       </option>
     </select>
-    <button @click="openPDF">Download PDF</button>
-    <button @click="createPurchaseReturn">Return Items</button>
-    <router-link class="btn" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
-    <router-link to="/purchase">Back</router-link>
+    <div class="page-actions">
+      <button class="btn secondary" @click="openPDF">Download PDF</button>
+      <button class="btn secondary" @click="createPurchaseReturn">Return Items</button>
+      <router-link class="btn primary" :to="`/purchase/${data._id}/payment`">Make Payment</router-link>
+      <router-link class="btn secondary" to="/purchase">Back</router-link>
+    </div>
   </div>
 </template>
 
@@ -181,6 +183,20 @@ const restorePayment = async (payment) => {
 <style scoped>
 .invoice { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
 .info { display: flex; justify-content: space-between; margin-bottom: 15px; }
+.page-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.btn.secondary { background: #fff; color: #2563eb; }
 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .totals { text-align: right; margin-top: 20px; }

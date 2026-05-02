@@ -4,8 +4,8 @@
       <h2>Purchase Invoice</h2>
 
       <div class="actions">
-        <button @click="openPDF">Download PDF</button>
-        <router-link to="/purchase">Back</router-link>
+        <button class="btn primary" @click="openPDF">Download PDF</button>
+        <router-link class="btn secondary" to="/purchase">Back</router-link>
       </div>
     </div>
 
@@ -89,10 +89,32 @@ const openPDF = () => {
   justify-content: space-between;
 }
 .actions button {
-  background: #2563eb;
-  color: white;
-  padding: 6px 10px;
   margin-right: 10px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.btn.secondary {
+  background: #fff;
+  color: #2563eb;
 }
 .block {
   margin: 15px 0;
