@@ -38,6 +38,24 @@
       </div>
 
       <div class="form-group">
+        <label>Unit</label>
+        <select v-model="form.unitId">
+          <option value="">No unit</option>
+          <option v-for="unit in units" :key="unit._id" :value="unit._id">
+            {{ unit.name }}{{ unit.shortName ? ` (${unit.shortName})` : "" }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group quick-unit">
+        <label>Quick Add Unit</label>
+        <div class="quick-row">
+          <input v-model.trim="newUnitName" placeholder="Unit name" />
+          <button type="button" class="btn-secondary" @click="quickAddUnit">Add</button>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label>Opening Rate (Cost)</label>
         <input type="number" min="0" step="0.01" v-model.number="form.openingRate" />
       </div>
@@ -94,6 +112,7 @@ import {
   updateProductApi,
   getProductByIdApi
 } from "@/api/productApi";
+import { createUnitApi, listUnitsApi } from "@/api/applicatorApi";
 
 const route = useRoute();
 const router = useRouter();
@@ -110,6 +129,7 @@ const form = reactive({
   openingStock: 0,
   price: 0,
   openingRate: 0,
+  unitId: "",
   attributes: [
     { key: "", value: "" }
   ]
@@ -117,9 +137,12 @@ const form = reactive({
 
 const message = ref("");
 const type = ref("");
+const units = ref([]);
+const newUnitName = ref("");
 
 /* 📥 Load product for edit */
 onMounted(async () => {
+  units.value = (await listUnitsApi({ status: "active" })).data || [];
   if (isEdit.value) {
     try {
       const res = await getProductByIdApi(route.params.id);
@@ -131,6 +154,7 @@ onMounted(async () => {
       form.openingStock = Number(res.data.openingStock || 0);
       form.price = Number(res.data.price || 0);
       form.openingRate = Number(res.data.openingRate || 0);
+      form.unitId = res.data.unitId || "";
 
       /* 🔥 Convert attributes object → array */
       form.attributes = Object.entries(res.data.attributes || {}).map(
@@ -142,6 +166,14 @@ onMounted(async () => {
     }
   }
 });
+
+const quickAddUnit = async () => {
+  if (!newUnitName.value) return;
+  const res = await createUnitApi({ name: newUnitName.value });
+  units.value = (await listUnitsApi({ status: "active" })).data || [];
+  form.unitId = res.data?._id || "";
+  newUnitName.value = "";
+};
 
 /* ➕ Add attribute */
 const addAttribute = () => {
@@ -170,6 +202,7 @@ const submit = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      unitId: form.unitId || null,
       attributes: attributesObj
     };
 
@@ -228,6 +261,15 @@ select {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.quick-row {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-row input {
+  flex: 1;
 }
 
 .btn-remove {

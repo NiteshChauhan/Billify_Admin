@@ -18,6 +18,14 @@
           <option value="all">All</option>
         </select>
       </label>
+      <label>Applicator
+        <select v-model="applicatorId">
+          <option value="">All</option>
+          <option v-for="applicator in applicators" :key="applicator._id" :value="applicator._id">
+            {{ applicator.name }}
+          </option>
+        </select>
+      </label>
       <button class="btn-light" @click="load">Apply</button>
     </div>
 
@@ -31,6 +39,7 @@
             <th>Date</th>
             <th>Customer Name</th>
             <th>Sale Number</th>
+            <th>Applicator</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
             <th>Record</th>
@@ -45,6 +54,7 @@
             <td>{{ fmt(inv.invoiceDate) }}</td>
             <td>{{ inv.partyId?.name || inv.customerId?.name || inv.vendorId?.name || '-' }}</td>
             <td>{{ inv.invoiceNo }}</td>
+            <td>{{ inv.applicatorName || 'Unassigned' }}</td>
             <td>{{ money(inv.totalAmount) }}</td>
             <td>{{ money(inv.paidAmount) }}</td>
             <td><span :class="['pill', inv.isDeleted ? 'DELETED' : 'ACTIVE']">{{ inv.isDeleted ? 'Deleted' : 'Active' }}</span></td>
@@ -59,7 +69,7 @@
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="10" class="empty">No sales found</td>
+            <td colspan="11" class="empty">No sales found</td>
           </tr>
         </tbody>
       </table>
@@ -80,11 +90,14 @@ import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
+import { listApplicatorsApi } from "@/api/applicatorApi";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
 const statusFilter = ref("active");
+const applicatorId = ref("");
+const applicators = ref([]);
 const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
@@ -103,6 +116,7 @@ const load = async () => {
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
   params.status = statusFilter.value;
+  if (applicatorId.value) params.applicatorId = applicatorId.value;
   const res = await http.get("/sales", { params });
   rows.value = res.data || [];
   loading.value = false;
@@ -135,7 +149,10 @@ const totals = computed(() => {
   };
 });
 
-onMounted(load);
+onMounted(async () => {
+  applicators.value = (await listApplicatorsApi({ status: "active", limit: 100 })).data?.data || [];
+  await load();
+});
 </script>
 
 <style scoped>

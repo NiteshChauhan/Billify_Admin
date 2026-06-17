@@ -158,6 +158,7 @@
           <th>Sr No</th>
           <th>Product Name</th>
           <th>Opening Stock</th>
+          <th>Unit</th>
           <th>Current Stock</th>
           <th>Price</th>
           <th>Last Sale</th>
@@ -172,6 +173,7 @@
           <td>{{ startIndex + idx + 1 }}</td>
           <td>{{ p.name }}</td>
           <td>{{ p.openingStock }}</td>
+          <td>{{ p.unitName || p.attributes?.unit || p.attributes?.Unit || "-" }}</td>
           <td>{{ p.stock }}</td>
           <td>{{ money(p.price) }}</td>
           <td>{{ money(p.lastSalePrice) }}</td>
@@ -186,7 +188,7 @@
           </td>
         </tr>
         <tr v-if="!filteredRows.length">
-          <td colspan="10" class="empty">No products found</td>
+          <td colspan="11" class="empty">No products found</td>
         </tr>
       </tbody>
     </table>
@@ -228,6 +230,14 @@
         <label>Product Name (Arabic) <input v-model="form.nameAr" /></label>
         <label>Product Name (Hindi) <input v-model="form.nameHi" /></label>
         <label>SKU <input v-model="form.sku" /></label>
+        <label>Unit
+          <select v-model="form.unitId">
+            <option value="">No unit</option>
+            <option v-for="unit in units" :key="unit._id" :value="unit._id">
+              {{ unit.name }}{{ unit.shortName ? ` (${unit.shortName})` : "" }}
+            </option>
+          </select>
+        </label>
         <label
           >Opening Stock
           <input
@@ -345,6 +355,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
+import { listUnitsApi } from "@/api/applicatorApi";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
@@ -367,6 +378,7 @@ const form = reactive({
   nameAr: "",
   nameHi: "",
   sku: "",
+  unitId: "",
   openingStock: 0,
   price: 0,
   openingRate: 0,
@@ -473,7 +485,11 @@ const load = async () => {
   loading.value = false;
 };
 
-onMounted(load);
+onMounted(async () => {
+  units.value = (await listUnitsApi({ status: "active" })).data || [];
+  await load();
+});
+const units = ref([]);
 
 const filteredRows = computed(() => {
   const q = search.value.toLowerCase();
@@ -518,6 +534,7 @@ const openCreate = () => {
   form.nameAr = "";
   form.nameHi = "";
   form.sku = "";
+  form.unitId = "";
   form.openingStock = 0;
   form.price = 0;
   form.openingRate = 0;
@@ -530,6 +547,7 @@ const openEdit = (product) => {
   form.nameAr = product.nameAr || "";
   form.nameHi = product.nameHi || "";
   form.sku = product.sku || "";
+  form.unitId = product.unitId || "";
   form.openingStock = Number(product.openingStock || 0);
   form.price = Number(product.price || 0);
   form.openingRate = Number(product.openingRate || 0);
@@ -654,6 +672,7 @@ const save = async () => {
       nameAr: form.nameAr,
       nameHi: form.nameHi,
       sku: form.sku,
+      unitId: form.unitId || null,
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
@@ -665,6 +684,7 @@ const save = async () => {
       nameAr: form.nameAr,
       nameHi: form.nameHi,
       sku: form.sku,
+      unitId: form.unitId || null,
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),

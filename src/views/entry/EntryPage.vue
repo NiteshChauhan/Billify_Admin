@@ -48,6 +48,29 @@
       </label>
       <button class="btn btn-primary" @click="leftOpen = true">Select Party</button>
       <button class="btn btn-secondary" @click="rightOpen = true">Select Product</button>
+      <label class="field-inline compact">
+        <span>Site</span>
+        <select v-model="selectedSiteId">
+          <option value="">No site</option>
+          <option v-for="site in sites" :key="site._id" :value="site._id">{{ site.name }}</option>
+        </select>
+      </label>
+      <label class="field-inline compact">
+        <span>Applicator</span>
+        <select v-model="selectedApplicatorId">
+          <option value="">No applicator</option>
+          <option
+            v-for="applicator in assignedApplicators"
+            :key="applicator.applicatorId"
+            :value="applicator.applicatorId"
+          >
+            {{ applicator.applicatorName }}
+          </option>
+        </select>
+      </label>
+      <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
+        No applicator assigned for this site
+      </span>
       <label class="field-inline compact checkbox-inline">
         <input v-model="showCost" type="checkbox" />
         <span>Show Cost / Purchase Price</span>
@@ -291,6 +314,7 @@ import { useCurrency } from "@/composables/useCurrency";
 import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
+import { listAssignedApplicatorsBySiteApi, listSitesApi } from "@/api/applicatorApi";
 
 const route = useRoute();
 const router = useRouter();
@@ -311,6 +335,10 @@ const rows = ref([]);
 const products = ref([]);
 const parties = ref([]);
 const selectedParty = ref(null);
+const sites = ref([]);
+const selectedSiteId = ref("");
+const assignedApplicators = ref([]);
+const selectedApplicatorId = ref("");
 const paymentType = ref("credit");
 const bankAccountId = ref("");
 const paidAmount = ref(0);
@@ -418,6 +446,8 @@ const closePanels = () => {
 
 const selectParty = (party) => {
   selectedParty.value = party;
+  selectedSiteId.value = "";
+  selectedApplicatorId.value = "";
   leftOpen.value = false;
 };
 
@@ -542,6 +572,26 @@ const loadReturnBillItems = async () => {
     }));
 };
 
+const loadSitesForParty = async (partyId, resetSelection = true) => {
+  sites.value = [];
+  assignedApplicators.value = [];
+  if (resetSelection) {
+    selectedSiteId.value = "";
+    selectedApplicatorId.value = "";
+  }
+  if (!partyId) return;
+  sites.value = (await listSitesApi({ partyId })).data || [];
+};
+
+const loadApplicatorsForSite = async (partyId, siteId, resetSelection = true) => {
+  assignedApplicators.value = [];
+  if (resetSelection) selectedApplicatorId.value = "";
+  if (!partyId || !siteId) return;
+  assignedApplicators.value = (
+    await listAssignedApplicatorsBySiteApi({ partyId, siteId })
+  ).data || [];
+};
+
 const loadEditInvoice = async () => {
   if (!isEditMode.value || !isSaleOrPurchase.value) return;
   const endpoint = transactionType.value === "purchase" ? `/purchase/${route.params.id}` : `/sales/${route.params.id}`;
@@ -554,9 +604,15 @@ const loadEditInvoice = async () => {
   paymentType.value = String(data.paymentType || "credit").toLowerCase();
   bankAccountId.value = data.bankAccountId?._id || data.bankAccountId || "";
   paidAmount.value = Number(data.paidAmount || 0);
+  selectedSiteId.value = data.siteId?._id || data.siteId || "";
+  selectedApplicatorId.value = data.applicatorId?._id || data.applicatorId || "";
   taxAmount.value = gstEnabled.value ? Number(data.tax || 0) : 0;
   invoiceDate.value = data.invoiceDate ? new Date(data.invoiceDate).toISOString().slice(0, 10) : invoiceDate.value;
   billNumber.value = data.invoiceNo || "";
+  if (selectedParty.value?._id) {
+    await loadSitesForParty(selectedParty.value._id, false);
+    await loadApplicatorsForSite(selectedParty.value._id, selectedSiteId.value, false);
+  }
 
   rows.value = await Promise.all((data.items || []).map(async (item) => {
     const productId = String(item.productId?._id || item.productId || "");
@@ -583,6 +639,10 @@ const loadEditInvoice = async () => {
 const onTypeChange = async () => {
   rows.value = [];
   selectedParty.value = null;
+  sites.value = [];
+  selectedSiteId.value = "";
+  assignedApplicators.value = [];
+  selectedApplicatorId.value = "";
   paidAmount.value = 0;
   taxAmount.value = 0;
   selectedReturnBillId.value = "";
@@ -633,6 +693,8 @@ const save = async () => {
   if (transactionType.value === "sale") {
     const payload = {
       partyId: selectedParty.value?._id || null,
+      siteId: selectedSiteId.value || null,
+      applicatorId: selectedApplicatorId.value || null,
       paymentType: paymentType.value,
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceDate: invoiceDate.value,
@@ -653,6 +715,8 @@ const save = async () => {
   if (transactionType.value === "purchase") {
     const payload = {
       partyId: selectedParty.value?._id || null,
+      siteId: selectedSiteId.value || null,
+      applicatorId: selectedApplicatorId.value || null,
       paymentType: paymentType.value,
       bankAccountId: paymentType.value === "bank" ? bankAccountId.value : null,
       invoiceNo: billNumber.value.trim(),
@@ -774,6 +838,20 @@ watch(
     }
   },
 );
+
+watch(
+  () => selectedParty.value?._id,
+  (partyId) => {
+    loadSitesForParty(partyId);
+  },
+);
+
+watch(
+  () => selectedSiteId.value,
+  (siteId) => {
+    loadApplicatorsForSite(selectedParty.value?._id, siteId);
+  },
+);
 </script>
 
 <style scoped>
@@ -877,6 +955,12 @@ watch(
 }
 
 .selected {
+  font-weight: 600;
+}
+
+.muted-note {
+  color: #b45309;
+  font-size: 12px;
   font-weight: 600;
 }
 

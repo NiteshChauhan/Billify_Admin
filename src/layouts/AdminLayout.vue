@@ -58,6 +58,13 @@
         <button class="icon-btn" @click="toggleSidebar">&#9776;</button>
         <h3>Billing</h3>
         <div class="topbar-spacer" />
+        <div class="quick-actions">
+          <router-link class="quick-btn" to="/entry?type=sale">Add Invoice</router-link>
+          <button class="quick-btn" @click="downloadCsv">Export Excel</button>
+          <button class="quick-btn" @click="downloadPdf">Export PDF</button>
+          <button class="quick-btn" @click="downloadApplicatorSummary">Applicator Summary</button>
+          <router-link class="quick-btn" to="/payments">Add Payment</router-link>
+        </div>
         <label class="company-switcher">
           <span>Branch</span>
           <select
@@ -76,6 +83,9 @@
         </label>
         <div class="company-chip">{{ currentBranchLabel }}</div>
       </header>
+      <div v-if="auth.subscriptionWarning" class="subscription-warning">
+        {{ auth.subscriptionWarning.message }}
+      </div>
       <main class="content"><router-view /></main>
     </div>
 
@@ -90,6 +100,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import FinancialYearSelect from "@/components/FinancialYearSelect.vue";
 import NotificationHost from "@/components/NotificationHost.vue";
+import { downloadAdminBlob } from "@/api/applicatorApi";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -116,6 +127,16 @@ const navItems = [
     label: "Products",
     path: "/products",
     icon: "M12 3l9 4.5-9 4.5-9-4.5L12 3zM3 7.5V16.5L12 21l9-4.5V7.5",
+  },
+  {
+    label: "Applicators",
+    path: "/applicators",
+    icon: "M16 11c1.66 0 3-1.34 3-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zM8 13c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zM16 13c-.29 0-.62.02-.97.05 1.16.84 1.97 1.96 1.97 3.45V19h6v-2.5C23 14.17 18.33 13 16 13z",
+  },
+  {
+    label: "Assignments",
+    path: "/applicator-assignments",
+    icon: "M4 7h16M4 12h16M4 17h10",
   },
   { label: "Entry", path: "/entry", icon: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" },
   { label: "Stock", path: "/stock", icon: "M3 7h18M5 7v12h14V7" },
@@ -223,6 +244,11 @@ const handleLogout = async () => {
     router.replace("/login");
   }
 };
+
+const downloadCsv = () => downloadAdminBlob("/admin/exports/invoices/csv", "invoices.csv");
+const downloadPdf = () => downloadAdminBlob("/admin/exports/invoices/pdf", "invoices.pdf");
+const downloadApplicatorSummary = () =>
+  downloadAdminBlob("/admin/reports/applicator-summary/pdf", "applicator-summary.pdf");
 
 onMounted(async () => {
   if (auth.token && (!auth.branches.length || !auth.selectedBranchId)) {
@@ -425,6 +451,35 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+.quick-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.quick-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.subscription-warning {
+  border-bottom: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .content {
   padding: 20px;
 }
@@ -460,8 +515,13 @@ onMounted(async () => {
 
   .company-switcher,
   .company-switcher select,
-  .company-chip {
+  .company-chip,
+  .quick-actions {
     width: 100%;
+  }
+
+  .quick-btn {
+    flex: 1 1 130px;
   }
 }
 </style>

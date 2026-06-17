@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 const SELECTED_BRANCH_KEY = "selectedBranchId";
+const SUBSCRIPTION_WARNING_KEY = "subscriptionWarning";
 const MAIN_BRANCH_ALIASES = new Set(["0", "main", "main_branch", "main-branch"]);
 
 function getStoredUser() {
@@ -22,11 +23,22 @@ function getStoredSelectedBranchId() {
   return MAIN_BRANCH_ALIASES.has(String(value).trim().toLowerCase()) ? null : value;
 }
 
+function getStoredSubscriptionWarning() {
+  try {
+    const warning = localStorage.getItem(SUBSCRIPTION_WARNING_KEY);
+    return warning ? JSON.parse(warning) : null;
+  } catch (e) {
+    localStorage.removeItem(SUBSCRIPTION_WARNING_KEY);
+    return null;
+  }
+}
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: localStorage.getItem(TOKEN_KEY) || null,
     user: getStoredUser(),
     selectedBranchId: getStoredSelectedBranchId(),
+    subscriptionWarning: getStoredSubscriptionWarning(),
   }),
 
   getters: {
@@ -54,9 +66,20 @@ export const useAuthStore = defineStore("auth", {
         data.user?.selectedBranchId ||
         this.user?.branches?.[0]?._id ||
         null;
+      this.subscriptionWarning = data.subscriptionWarning
+        ? {
+            daysLeft: data.daysLeft,
+            message: data.message,
+          }
+        : null;
 
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(this.user));
+      if (this.subscriptionWarning) {
+        localStorage.setItem(SUBSCRIPTION_WARNING_KEY, JSON.stringify(this.subscriptionWarning));
+      } else {
+        localStorage.removeItem(SUBSCRIPTION_WARNING_KEY);
+      }
       if (this.selectedBranchId) {
         localStorage.setItem(SELECTED_BRANCH_KEY, String(this.selectedBranchId));
       } else {
@@ -80,8 +103,19 @@ export const useAuthStore = defineStore("auth", {
         selectedBranchId,
       };
       this.selectedBranchId = selectedBranchId;
+      this.subscriptionWarning = data.subscriptionWarning
+        ? {
+            daysLeft: data.daysLeft,
+            message: data.message,
+          }
+        : null;
 
       localStorage.setItem(USER_KEY, JSON.stringify(this.user));
+      if (this.subscriptionWarning) {
+        localStorage.setItem(SUBSCRIPTION_WARNING_KEY, JSON.stringify(this.subscriptionWarning));
+      } else {
+        localStorage.removeItem(SUBSCRIPTION_WARNING_KEY);
+      }
       if (selectedBranchId) {
         localStorage.setItem(SELECTED_BRANCH_KEY, String(selectedBranchId));
       } else {
@@ -146,10 +180,12 @@ export const useAuthStore = defineStore("auth", {
       this.token = null;
       this.user = null;
       this.selectedBranchId = null;
+      this.subscriptionWarning = null;
 
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(SELECTED_BRANCH_KEY);
+      localStorage.removeItem(SUBSCRIPTION_WARNING_KEY);
     },
   },
 });

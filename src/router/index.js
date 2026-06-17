@@ -47,6 +47,12 @@ const routes = [
       { path: "products/create", name: "product-create", component: () => import("@/views/products/ProductForm.vue") },
       { path: "products/edit/:id", name: "product-edit", component: () => import("@/views/products/ProductForm.vue") },
 
+      { path: "applicators", name: "applicators", component: () => import("@/views/applicators/ApplicatorList.vue") },
+      { path: "applicators/add", name: "applicator-add", component: () => import("@/views/applicators/ApplicatorForm.vue") },
+      { path: "applicators/:id/edit", name: "applicator-edit", component: () => import("@/views/applicators/ApplicatorForm.vue") },
+      { path: "applicators/:id/view", name: "applicator-view", component: () => import("@/views/applicators/ApplicatorView.vue") },
+      { path: "applicator-assignments", name: "applicator-assignments", component: () => import("@/views/applicators/ApplicatorAssignments.vue") },
+
       { path: "entry", name: "entry", component: () => import("@/views/entry/EntryPage.vue") },
 
       { path: "stock", name: "stock", component: () => import("@/views/stock/StockList.vue") },
