@@ -108,50 +108,56 @@
                   <div class="action-cell">
                     <router-link
                       v-if="row.type === 'sale' || row.type === 'purchase'"
-                      class="btn ghost"
                       :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
-                      class="btn ghost"
                       :to="`/sales/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View sale bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
-                      class="btn ghost"
                       :to="`/purchase/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View purchase bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'sale_return'"
-                      class="btn ghost"
                       :to="`/sale-return?billId=${row.referenceId || ''}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View sale return" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'purchase_return'"
-                      class="btn ghost"
                       :to="`/purchase-return?billId=${row.referenceId || ''}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View purchase return" variant="view" @click="navigate" />
                     </router-link>
                     <template v-else>
                       <template v-if="row.type === 'expense'">
-                        <button class="btn ghost" @click="editExpense(row)">Edit</button>
-                        <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                        <ActionIconButton icon="edit" title="Edit expense" variant="edit" @click="editExpense(row)" />
+                        <ActionIconButton icon="delete" title="Delete expense" variant="danger" @click="deleteExpense(row)" />
                       </template>
                       <router-link
                         v-else-if="row.type === 'loan'"
-                        class="btn ghost"
                         to="/loans"
+                        custom
+                        v-slot="{ navigate }"
                       >
-                        View
+                        <ActionIconButton icon="view" title="View loans" variant="view" @click="navigate" />
                       </router-link>
                       <span v-else>-</span>
                     </template>
@@ -206,50 +212,56 @@
                   <div class="action-cell">
                     <router-link
                       v-if="row.type === 'sale' || row.type === 'purchase'"
-                      class="btn ghost"
                       :to="row.type === 'sale' ? `/sales/${row.billId}` : `/purchase/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'payment' && row.invoiceType === 'SALE' && row.billId"
-                      class="btn ghost"
                       :to="`/sales/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View sale bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'payment' && row.invoiceType === 'PURCHASE' && row.billId"
-                      class="btn ghost"
                       :to="`/purchase/${row.billId}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View purchase bill" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'sale_return'"
-                      class="btn ghost"
                       :to="`/sale-return?billId=${row.referenceId || ''}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View sale return" variant="view" @click="navigate" />
                     </router-link>
                     <router-link
                       v-else-if="row.type === 'purchase_return'"
-                      class="btn ghost"
                       :to="`/purchase-return?billId=${row.referenceId || ''}`"
+                      custom
+                      v-slot="{ navigate }"
                     >
-                      View
+                      <ActionIconButton icon="view" title="View purchase return" variant="view" @click="navigate" />
                     </router-link>
                     <template v-else>
                       <template v-if="row.type === 'expense'">
-                        <button class="btn ghost" @click="editExpense(row)">Edit</button>
-                        <button class="btn danger" @click="deleteExpense(row)">Delete</button>
+                        <ActionIconButton icon="edit" title="Edit expense" variant="edit" @click="editExpense(row)" />
+                        <ActionIconButton icon="delete" title="Delete expense" variant="danger" @click="deleteExpense(row)" />
                       </template>
                       <router-link
                         v-else-if="row.type === 'loan'"
-                        class="btn ghost"
                         to="/loans"
+                        custom
+                        v-slot="{ navigate }"
                       >
-                        View
+                        <ActionIconButton icon="view" title="View loans" variant="view" @click="navigate" />
                       </router-link>
                       <span v-else>-</span>
                     </template>
@@ -454,6 +466,7 @@ import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const today = new Date().toISOString().slice(0, 10);
 

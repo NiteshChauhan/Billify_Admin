@@ -63,7 +63,7 @@
             <tr v-for="(item, index) in form.items" :key="`${item.productId}-${index}`">
               <td>{{ productName(item.productId) }}</td>
               <td class="num">{{ item.qty }}</td>
-              <td><button class="btn danger" @click="removeItem(index)">Remove</button></td>
+              <td><ActionIconButton icon="delete" title="Remove item" variant="danger" @click="removeItem(index)" /></td>
             </tr>
           </tbody>
         </table>
@@ -102,8 +102,8 @@
               <td>{{ transfer.toBranchId?.branchName || "-" }}</td>
               <td>{{ (transfer.items || []).length }}</td>
               <td class="capitalize">{{ transfer.status }}</td>
-              <td>
-                <button class="btn secondary" @click="openTransferView(transfer)">View</button>
+              <td class="row-actions">
+                <ActionIconButton icon="view" title="View transfer" variant="view" @click="openTransferView(transfer)" />
               </td>
             </tr>
           </tbody>
@@ -194,6 +194,7 @@ import http from "@/api/http";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const auth = useAuthStore();
 const today = new Date().toISOString().slice(0, 10);

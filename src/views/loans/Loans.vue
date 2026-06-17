@@ -72,9 +72,9 @@
             <td>{{ loan.isDeleted ? "Deleted" : "Active" }}</td>
             <td>{{ loan.note || "-" }}</td>
             <td class="row-actions">
-              <button v-if="!loan.isDeleted" class="btn ghost" @click="openModal(loan)">Edit</button>
-              <button v-if="!loan.isDeleted" class="btn danger" @click="deleteLoan(loan)">Delete</button>
-              <button v-else class="btn ghost" @click="restoreLoan(loan)">Restore</button>
+              <ActionIconButton v-if="!loan.isDeleted" icon="edit" title="Edit loan entry" variant="edit" @click="openModal(loan)" />
+              <ActionIconButton v-if="!loan.isDeleted" icon="delete" title="Delete loan entry" variant="danger" @click="deleteLoan(loan)" />
+              <ActionIconButton v-else icon="power" title="Restore loan entry" variant="success" @click="restoreLoan(loan)" />
             </td>
           </tr>
         </tbody>
@@ -136,6 +136,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -251,7 +252,7 @@ const saveLoan = async () => {
 };
 
 const deleteLoan = async (loan) => {
-  if (!window.confirm(`Delete ${loan.type === "loan_out" ? "loan out" : "loan in"} entry?`)) {
+  if (!window.confirm("Are you sure you want to delete this record?")) {
     return;
   }
   await http.delete(`/loans/${loan._id}`);

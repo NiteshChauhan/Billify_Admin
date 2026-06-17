@@ -31,8 +31,8 @@
           <td>{{ row.price }}</td>
           <td>{{ row.billNumber || '-' }}</td>
           <td>{{ row.remainingStock }}</td>
-          <td>
-            <router-link v-if="routeFor(row)" :to="routeFor(row)">View</router-link>
+          <td class="actions">
+            <ActionIconButton v-if="routeFor(row)" icon="view" :to="routeFor(row)" title="View bill" variant="view" />
             <span v-else>-</span>
           </td>
         </tr>
@@ -53,6 +53,7 @@
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const route = useRoute();
 const product = ref({});
@@ -85,4 +86,5 @@ onMounted(async () => {
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .summary { margin-top: 14px; display: grid; gap: 6px; justify-content: end; text-align: right; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

@@ -122,7 +122,9 @@
               <td class="capitalize">{{ branch.type }}</td>
               <td class="capitalize">{{ branch.status }}</td>
               <td>{{ branch.isDefault ? "Yes" : "No" }}</td>
-              <td><button class="btn ghost" @click="openBranchModal(branch)">Edit</button></td>
+              <td class="row-actions">
+                <ActionIconButton icon="edit" title="Edit branch" variant="edit" @click="openBranchModal(branch)" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -154,8 +156,8 @@
               <td>{{ account.accountNumber }}</td>
               <td>{{ money(account.balance) }}</td>
               <td class="row-actions">
-                <button class="btn ghost" @click="openBankModal(account)">Edit</button>
-                <button class="btn danger" @click="removeBankAccount(account)">Delete</button>
+                <ActionIconButton icon="edit" title="Edit bank account" variant="edit" @click="openBankModal(account)" />
+                <ActionIconButton icon="delete" title="Delete bank account" variant="danger" @click="removeBankAccount(account)" />
               </td>
             </tr>
           </tbody>
@@ -321,6 +323,7 @@ import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import { syncPdfLanguageFromCompany } from "@/utils/pdfLanguage";
 import { useAuthStore } from "@/stores/authStore";
 import { useCompanySettings } from "@/composables/useCompanySettings";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const today = new Date().toISOString().slice(0, 10);
 const auth = useAuthStore();
@@ -538,7 +541,7 @@ const saveBankAccount = async () => {
 };
 
 const removeBankAccount = async (account) => {
-  if (!window.confirm(`Delete bank account "${account.accountName}"?`)) {
+  if (!window.confirm("Are you sure you want to delete this record?")) {
     return;
   }
   try {

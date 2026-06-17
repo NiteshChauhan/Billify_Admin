@@ -26,7 +26,7 @@
         <button class="btn primary" @click="load">Apply</button>
       </div>
       <div class="right">
-        <button class="btn ghost" @click="printLedger">Print</button>
+        <ActionIconButton icon="print" title="Print ledger" variant="print" @click="printLedger" />
       </div>
     </div>
 
@@ -55,11 +55,11 @@
             <td class="num">{{ money(row.credit) }}</td>
             <td class="num">{{ money(row.balance) }}</td>
             <td class="actions">
-              <router-link v-if="row.billId && row.billType === 'SALE'" :to="`/sales/${row.billId}`">View</router-link>
-              <router-link v-else-if="row.billId && row.billType === 'PURCHASE'" :to="`/purchase/${row.billId}`">View</router-link>
-              <router-link v-if="row.canEditBill && row.billId && row.billType === 'SALE'" :to="`/sales/edit/${row.billId}`">Edit</router-link>
-              <router-link v-if="row.canEditBill && row.billId && row.billType === 'PURCHASE'" :to="`/purchase/edit/${row.billId}`">Edit</router-link>
-              <a v-if="row.billId && row.billType" @click.prevent="printBill(row)">Print</a>
+              <ActionIconButton v-if="row.billId && row.billType === 'SALE'" icon="view" :to="`/sales/${row.billId}`" title="View sale bill" variant="view" />
+              <ActionIconButton v-else-if="row.billId && row.billType === 'PURCHASE'" icon="view" :to="`/purchase/${row.billId}`" title="View purchase bill" variant="view" />
+              <ActionIconButton v-if="row.canEditBill && row.billId && row.billType === 'SALE'" icon="edit" :to="`/sales/edit/${row.billId}`" title="Edit sale bill" variant="edit" />
+              <ActionIconButton v-if="row.canEditBill && row.billId && row.billType === 'PURCHASE'" icon="edit" :to="`/purchase/edit/${row.billId}`" title="Edit purchase bill" variant="edit" />
+              <ActionIconButton v-if="row.billId && row.billType" icon="print" title="Print bill" variant="print" @click="printBill(row)" />
             </td>
           </tr>
         </tbody>
@@ -83,6 +83,8 @@ import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const route = useRoute();
 const ledger = ref([]);
@@ -147,6 +149,7 @@ const totals = computed(() =>
 );
 
 const printLedger = () => {
+  notifyInfo("PDF download started.");
   const baseParams = { ...getFinancialYearParams() };
   if (from.value && to.value) {
     baseParams.from = from.value;
@@ -163,10 +166,12 @@ const printLedger = () => {
     language: getPdfLanguage(),
   });
   window.open(`${import.meta.env.VITE_API_BASE_URL}/users/${route.params.userId}/ledger/pdf?${params}`, "_blank");
+  notifySuccess("PDF opened successfully.");
 };
 
 const printBill = (row) => {
   if (!row.billId || !row.billType) return;
+  notifyInfo("PDF download started.");
   const token = localStorage.getItem("token") || "";
   const branchId = localStorage.getItem("selectedBranchId") || "";
   const base = import.meta.env.VITE_API_BASE_URL;
@@ -175,6 +180,7 @@ const printBill = (row) => {
   } else if (row.billType === "PURCHASE") {
     window.open(`${base}/invoice-pdf/purchase/${row.billId}?token=${token}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
   }
+  notifySuccess("PDF opened successfully.");
 };
 </script>
 
@@ -195,7 +201,7 @@ th { background: #f9fafb; font-weight: 600; }
 tbody tr:hover { background: #f8fafc; }
 .num { text-align: right; }
 .empty { text-align: center; padding: 14px; color: #6b7280; }
-.actions a, .actions .router-link-active, .actions .router-link { margin-right: 10px; color: #2563eb; text-decoration: none; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { padding: 9px 12px; border-radius: 8px; text-decoration: none; border: 1px solid #2563eb; color: #2563eb; background: transparent; cursor: pointer; font-weight: 600; }
 .btn.icon { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .primary { background: #2563eb; color: #fff; border-color: #2563eb; }

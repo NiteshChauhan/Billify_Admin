@@ -48,10 +48,10 @@
           <td><span :class="['pill', row.isDeleted ? 'DELETED' : 'ACTIVE']">{{ row.isDeleted ? "Deleted" : "Active" }}</span></td>
           <td>{{ row.status || "-" }}</td>
           <td class="actions">
-            <router-link :to="`/sales/${row._id}`">View</router-link>
-            <router-link v-if="!row.isDeleted" :to="`/sales/edit/${row._id}`">Edit</router-link>
-            <button v-if="!row.isDeleted" type="button" @click="deleteBill(row)">Delete</button>
-            <button v-else type="button" @click="restoreBill(row)">Restore</button>
+            <ActionIconButton icon="view" :to="`/sales/${row._id}`" title="View replacement bill" variant="view" />
+            <ActionIconButton v-if="!row.isDeleted" icon="edit" :to="`/sales/edit/${row._id}`" title="Edit replacement bill" variant="edit" />
+            <ActionIconButton v-if="!row.isDeleted" icon="delete" title="Delete replacement bill" variant="danger" @click="deleteBill(row)" />
+            <ActionIconButton v-else icon="power" title="Restore replacement bill" variant="success" @click="restoreBill(row)" />
           </td>
         </tr>
         <tr v-if="!rows.length">
@@ -68,6 +68,8 @@ import http from "@/api/http";
 import Loader from "@/components/Loader.vue";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifySuccess } from "@/utils/notifications";
 
 const rows = ref([]);
 const fromDate = ref("");
@@ -91,13 +93,15 @@ const load = async () => {
 };
 
 const deleteBill = async (row) => {
-  if (!window.confirm(`Delete replacement bill ${row.invoiceNo || row._id}?`)) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   await http.delete(`/sales/${row._id}`);
+  notifySuccess("Replacement bill deleted successfully.");
   await load();
 };
 
 const restoreBill = async (row) => {
   await http.post(`/sales/${row._id}/restore`);
+  notifySuccess("Replacement bill restored successfully.");
   await load();
 };
 
@@ -117,7 +121,6 @@ input, select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; vertical-align: top; }
 .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.actions button { border: none; background: none; color: #2563eb; cursor: pointer; padding: 0; }
 .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
 .ACTIVE { background: #e0f2fe; color: #075985; }
 .DELETED { background: #e5e7eb; color: #374151; }

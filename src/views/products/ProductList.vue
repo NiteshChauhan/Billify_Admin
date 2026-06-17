@@ -181,10 +181,10 @@
           <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
           <td>{{ p.stock > 0 ? "Available" : "Not Available" }}</td>
           <td class="actions">
-            <router-link :to="`/products/${p._id}/history`">View</router-link>
-            <button v-if="!p.isDeleted" @click="openEdit(p)">Edit</button>
-            <button v-if="!p.isDeleted" @click="deleteProduct(p)">Delete</button>
-            <button v-else @click="restoreProduct(p)">Restore</button>
+            <ActionIconButton icon="view" :to="`/products/${p._id}/history`" title="View product history" variant="view" />
+            <ActionIconButton v-if="!p.isDeleted" icon="edit" title="Edit product" variant="edit" @click="openEdit(p)" />
+            <ActionIconButton v-if="!p.isDeleted" icon="delete" title="Delete product" variant="danger" @click="deleteProduct(p)" />
+            <ActionIconButton v-else icon="power" title="Restore product" variant="success" @click="restoreProduct(p)" />
           </td>
         </tr>
         <tr v-if="!filteredRows.length">
@@ -359,6 +359,7 @@ import { listUnitsApi } from "@/api/applicatorApi";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const rows = ref([]);
 const search = ref("");
@@ -785,12 +786,6 @@ td {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-.actions button {
-  border: none;
-  background: none;
-  color: #2563eb;
-  cursor: pointer;
 }
 .empty {
   text-align: center;

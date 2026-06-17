@@ -18,7 +18,7 @@
         <tr v-for="row in filteredRows" :key="row._id">
           <td>{{ row.name }}</td>
           <td>{{ row.stock }}</td>
-          <td><router-link :to="`/stock-ledger/${row._id}`">View</router-link></td>
+          <td><ActionIconButton icon="view" :to="`/stock-ledger/${row._id}`" title="View stock ledger" variant="view" /></td>
         </tr>
         <tr v-if="!filteredRows.length"><td colspan="3" class="empty">No products found</td></tr>
       </tbody>
@@ -29,6 +29,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import http from "@/api/http";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const search = ref("");
 const rows = ref([]);

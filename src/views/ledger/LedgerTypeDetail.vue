@@ -18,7 +18,7 @@
         <button class="btn primary" @click="load">Apply</button>
       </div>
       <div class="right">
-        <button class="btn ghost" @click="printLedger">Print</button>
+        <ActionIconButton icon="print" title="Print ledger" variant="print" @click="printLedger" />
       </div>
     </div>
 
@@ -48,8 +48,8 @@
             <td class="num">{{ money(row.debit) }}</td>
             <td class="num">{{ money(row.credit) }}</td>
             <td class="num">{{ money(row.balance) }}</td>
-            <td>
-              <router-link v-if="viewLink(row)" class="btn ghost" :to="viewLink(row)">View</router-link>
+            <td class="actions">
+              <ActionIconButton v-if="viewLink(row)" icon="view" :to="viewLink(row)" title="View bill" variant="view" />
               <span v-else>-</span>
             </td>
           </tr>
@@ -69,6 +69,8 @@ import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifyInfo } from "@/utils/notifications";
 
 const route = useRoute();
 const router = useRouter();
@@ -157,6 +159,7 @@ onMounted(async () => {
 
 const printLedger = () => {
   // Reuse existing browser print; PDF export isn't implemented for cash/bank ledgers.
+  notifyInfo("Print dialog opened.");
   window.print();
 };
 </script>
@@ -177,6 +180,7 @@ th { background: #f9fafb; font-weight: 600; }
 tbody tr:hover { background: #f8fafc; }
 .num { text-align: right; }
 .empty { text-align: center; padding: 14px; color: #6b7280; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { padding: 9px 12px; border-radius: 8px; text-decoration: none; border: 1px solid #2563eb; color: #2563eb; background: transparent; cursor: pointer; font-weight: 600; }
 .btn.icon { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .primary { background: #2563eb; color: #fff; border-color: #2563eb; }

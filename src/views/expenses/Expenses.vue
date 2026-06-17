@@ -57,9 +57,9 @@
             <td>{{ expense.isDeleted ? "Deleted" : "Active" }}</td>
             <td>{{ expense.note || "-" }}</td>
             <td class="row-actions">
-              <button v-if="!expense.isDeleted" class="btn ghost" @click="openModal(expense)">Edit</button>
-              <button v-if="!expense.isDeleted" class="btn danger" @click="deleteExpense(expense)">Delete</button>
-              <button v-else class="btn ghost" @click="restoreExpense(expense)">Restore</button>
+              <ActionIconButton v-if="!expense.isDeleted" icon="edit" title="Edit expense" variant="edit" @click="openModal(expense)" />
+              <ActionIconButton v-if="!expense.isDeleted" icon="delete" title="Delete expense" variant="danger" @click="deleteExpense(expense)" />
+              <ActionIconButton v-else icon="power" title="Restore expense" variant="success" @click="restoreExpense(expense)" />
             </td>
           </tr>
         </tbody>
@@ -118,6 +118,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import http from "@/api/http";
 import { useCurrency } from "@/composables/useCurrency";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -220,7 +221,7 @@ const saveExpense = async () => {
 };
 
 const deleteExpense = async (expense) => {
-  if (!window.confirm(`Delete expense "${expense.title}"?`)) {
+  if (!window.confirm("Are you sure you want to delete this record?")) {
     return;
   }
   await http.delete(`/expenses/${expense._id}`);

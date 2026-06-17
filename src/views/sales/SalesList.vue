@@ -61,11 +61,11 @@
             <td><span :class="['pill', inv.status]">{{ statusLabel(inv.status) }}</span></td>
             <td>{{ pendingDays(inv) }}</td>
             <td class="actions">
-              <router-link v-if="!inv.isDeleted" :to="`/sales/edit/${inv._id}`">Edit</router-link>
-              <router-link :to="`/sales/${inv._id}`">View</router-link>
-              <button v-if="!inv.isDeleted" @click="printBill(inv._id)">Print</button>
-              <button v-if="!inv.isDeleted" @click="deleteInvoice(inv)">Delete</button>
-              <button v-else @click="restoreInvoice(inv)">Restore</button>
+              <ActionIconButton v-if="!inv.isDeleted" icon="edit" :to="`/sales/edit/${inv._id}`" title="Edit sale" variant="edit" />
+              <ActionIconButton icon="view" :to="`/sales/${inv._id}`" title="View sale" variant="view" />
+              <ActionIconButton v-if="!inv.isDeleted" icon="print" title="Print sale" variant="print" @click="printBill(inv._id)" />
+              <ActionIconButton v-if="!inv.isDeleted" icon="delete" title="Delete sale" variant="danger" @click="deleteInvoice(inv)" />
+              <ActionIconButton v-else icon="power" title="Restore sale" variant="success" @click="restoreInvoice(inv)" />
             </td>
           </tr>
           <tr v-if="!rows.length">
@@ -91,6 +91,8 @@ import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
 import { listApplicatorsApi } from "@/api/applicatorApi";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const rows = ref([]);
 const fromDate = ref("");
@@ -123,20 +125,24 @@ const load = async () => {
 };
 
 const deleteInvoice = async (invoice) => {
-  if (!window.confirm(`Delete sale invoice ${invoice.invoiceNo}?`)) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   await http.delete(`/sales/${invoice._id}`);
+  notifySuccess("Sale invoice deleted successfully.");
   await load();
 };
 
 const restoreInvoice = async (invoice) => {
   await http.post(`/sales/${invoice._id}/restore`);
+  notifySuccess("Sale invoice restored successfully.");
   await load();
 };
 
 const printBill = (id) => {
+  notifyInfo("PDF download started.");
   const token = localStorage.getItem("token") || "";
   const branchId = localStorage.getItem("selectedBranchId") || "";
   window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${id}?token=${token}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(getPdfLanguage())}`, "_blank");
+  notifySuccess("PDF opened successfully.");
 };
 
 const totals = computed(() => {
@@ -175,7 +181,6 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .ACTIVE { background: #e0f2fe; color: #075985; }
 .DELETED { background: #e5e7eb; color: #374151; }
 .actions { display: flex; gap: 8px; align-items: center; }
-.actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
 .empty { text-align: center; color: #64748b; }
 .summary { margin-top: 12px; display: grid; gap: 6px; justify-content: end; text-align: right; }
 </style>

@@ -29,8 +29,8 @@
           <td>{{ row.quantityDr > 0 ? row.quantityDr : row.quantityCr }}</td>
           <td>{{ row.price }}</td>
           <td>{{ row.remainingStock }}</td>
-          <td>
-            <router-link v-if="billRoute(row)" :to="billRoute(row)">View Bill</router-link>
+          <td class="actions">
+            <ActionIconButton v-if="billRoute(row)" icon="view" :to="billRoute(row)" title="View bill" variant="view" />
             <span v-else>-</span>
           </td>
         </tr>
@@ -44,6 +44,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import http from "@/api/http";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const route = useRoute();
 const productId = route.params.productId;
@@ -82,4 +83,5 @@ const formatDate = (d) => new Date(d).toLocaleDateString("en-IN");
 .ledger-table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
 .empty { text-align: center; color: #64748b; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

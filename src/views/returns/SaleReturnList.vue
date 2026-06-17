@@ -49,16 +49,16 @@
           <td><span :class="['pill', row.isDeleted ? 'DELETED' : 'ACTIVE']">{{ row.isDeleted ? "Deleted" : "Active" }}</span></td>
           <td>
             <div v-if="getReplacementBill(row)" class="replacement-links">
-              <router-link :to="`/sales/${getReplacementBill(row).id || row.replacementBillId}`">View</router-link>
-              <router-link :to="`/sales/edit/${getReplacementBill(row).id || row.replacementBillId}`">Edit</router-link>
-              <button type="button" @click="deleteReplacementBill(getReplacementBill(row))">Delete</button>
+              <ActionIconButton icon="view" :to="`/sales/${getReplacementBill(row).id || row.replacementBillId}`" title="View replacement bill" variant="view" />
+              <ActionIconButton icon="edit" :to="`/sales/edit/${getReplacementBill(row).id || row.replacementBillId}`" title="Edit replacement bill" variant="edit" />
+              <ActionIconButton icon="delete" title="Delete replacement bill" variant="danger" @click="deleteReplacementBill(getReplacementBill(row))" />
             </div>
             <span v-else>-</span>
           </td>
           <td class="actions">
-            <router-link :to="`/sales/${row.billId}`">View Bill</router-link>
-            <button v-if="!row.isDeleted" @click="deleteReturn(row)">Delete</button>
-            <button v-else @click="restoreReturn(row)">Restore</button>
+            <ActionIconButton icon="view" :to="`/sales/${row.billId}`" title="View sale bill" variant="view" />
+            <ActionIconButton v-if="!row.isDeleted" icon="delete" title="Delete return" variant="danger" @click="deleteReturn(row)" />
+            <ActionIconButton v-else icon="power" title="Restore return" variant="success" @click="restoreReturn(row)" />
           </td>
         </tr>
         <tr v-if="!rows.length"><td colspan="8" class="empty">No return entries</td></tr>
@@ -74,6 +74,8 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifySuccess, notifyWarning } from "@/utils/notifications";
 
 const route = useRoute();
 const router = useRouter();
@@ -103,9 +105,10 @@ const load = async () => {
 };
 
 const deleteReturn = async (row) => {
-  if (!window.confirm(`Delete return ${row.returnNo || row._id}?`)) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   try {
     await http.delete(`/returns/${row._id}`);
+    notifySuccess("Sale return deleted successfully.");
     await load();
   } catch (err) {
     const data = err?.response?.data || {};
@@ -125,20 +128,22 @@ const deleteReturn = async (row) => {
       }
       return;
     }
-    window.alert(data.message || "Failed to delete sale return");
+    notifyWarning(data.message || "Failed to delete sale return");
   }
 };
 
 const deleteReplacementBill = async (bill) => {
   const replacementBillId = bill?.id || bill?._id;
   if (!replacementBillId) return;
-  if (!window.confirm(`Delete replacement bill ${bill.billNo || bill.invoiceNo || replacementBillId}?`)) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   await http.delete(`/sales/${replacementBillId}`);
+  notifySuccess("Replacement bill deleted successfully.");
   await load();
 };
 
 const restoreReturn = async (row) => {
   await http.post(`/returns/${row._id}/restore`);
+  notifySuccess("Sale return restored successfully.");
   await load();
 };
 
@@ -161,8 +166,6 @@ table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; vertical-align: top; }
 .actions,
 .replacement-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.actions button,
-.replacement-links button { border: none; background: none; color: #2563eb; cursor: pointer; padding: 0; }
 .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
 .ACTIVE { background: #e0f2fe; color: #075985; }
 .DELETED { background: #e5e7eb; color: #374151; }

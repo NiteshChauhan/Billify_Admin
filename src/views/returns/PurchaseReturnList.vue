@@ -45,13 +45,13 @@
           <td>{{ money(row.totalAmount) }}</td>
           <td><span :class="['pill', row.isDeleted ? 'DELETED' : 'ACTIVE']">{{ row.isDeleted ? 'Deleted' : 'Active' }}</span></td>
           <td>
-            <router-link v-if="row.replacementBillId" :to="`/purchase/${row.replacementBillId}`">View</router-link>
+            <ActionIconButton v-if="row.replacementBillId" icon="view" :to="`/purchase/${row.replacementBillId}`" title="View replacement bill" variant="view" />
             <span v-else>-</span>
           </td>
           <td class="actions">
-            <router-link :to="`/purchase/${row.billId}`">View Bill</router-link>
-            <button v-if="!row.isDeleted" @click="deleteReturn(row)">Delete</button>
-            <button v-else @click="restoreReturn(row)">Restore</button>
+            <ActionIconButton icon="view" :to="`/purchase/${row.billId}`" title="View purchase bill" variant="view" />
+            <ActionIconButton v-if="!row.isDeleted" icon="delete" title="Delete return" variant="danger" @click="deleteReturn(row)" />
+            <ActionIconButton v-else icon="power" title="Restore return" variant="success" @click="restoreReturn(row)" />
           </td>
         </tr>
         <tr v-if="!rows.length"><td colspan="8" class="empty">No return entries</td></tr>
@@ -67,6 +67,8 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifySuccess } from "@/utils/notifications";
 
 const route = useRoute();
 const rows = ref([]);
@@ -92,13 +94,15 @@ const load = async () => {
 };
 
 const deleteReturn = async (row) => {
-  if (!window.confirm(`Delete return ${row.returnNo || row._id}?`)) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   await http.delete(`/returns/${row._id}`);
+  notifySuccess("Purchase return deleted successfully.");
   await load();
 };
 
 const restoreReturn = async (row) => {
   await http.post(`/returns/${row._id}/restore`);
+  notifySuccess("Purchase return restored successfully.");
   await load();
 };
 
@@ -119,7 +123,6 @@ select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .actions { display: flex; gap: 8px; align-items: center; }
-.actions button { border: none; background: none; color: #2563eb; cursor: pointer; }
 .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
 .ACTIVE { background: #e0f2fe; color: #075985; }
 .DELETED { background: #e5e7eb; color: #374151; }

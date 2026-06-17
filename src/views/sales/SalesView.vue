@@ -71,13 +71,11 @@
             <td>{{ p.referenceNo || "-" }}</td>
             <td>{{ money(p.amount) }}</td>
             <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
-            <td>
-              <router-link :to="`/sales/${data._id}`">View Bill</router-link>
-              |
-              <router-link v-if="isSameDay(data.invoiceDate)" :to="`/sales/edit/${data._id}`">Edit Bill</router-link>
-              |
-              <a v-if="!p.isDeleted" href="#" @click.prevent="deletePayment(p)">Delete Payment</a>
-              <a v-else href="#" @click.prevent="restorePayment(p)">Restore Payment</a>
+            <td class="icon-actions">
+              <ActionIconButton icon="view" :to="`/sales/${data._id}`" title="View bill" variant="view" />
+              <ActionIconButton v-if="isSameDay(data.invoiceDate)" icon="edit" :to="`/sales/edit/${data._id}`" title="Edit bill" variant="edit" />
+              <ActionIconButton v-if="!p.isDeleted" icon="delete" title="Delete payment" variant="danger" @click="deletePayment(p)" />
+              <ActionIconButton v-else icon="power" title="Restore payment" variant="success" @click="restorePayment(p)" />
             </td>
           </tr>
         </tbody>
@@ -102,11 +100,11 @@
             <td>{{ formatDate(r.returnDate) }}</td>
             <td>{{ money(r.totalAmount) }}</td>
             <td>
-              <router-link v-if="r.replacementBillId" :to="`/sales/${r.replacementBillId}`">View</router-link>
+              <ActionIconButton v-if="r.replacementBillId" icon="view" :to="`/sales/${r.replacementBillId}`" title="View replacement bill" variant="view" />
               <span v-else>-</span>
             </td>
-            <td>
-              <router-link :to="`/sale-return?billId=${data._id}`">View</router-link>
+            <td class="icon-actions">
+              <ActionIconButton icon="view" :to="`/sale-return?billId=${data._id}`" title="View returns" variant="view" />
             </td>
           </tr>
         </tbody>
@@ -122,8 +120,9 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import { useCompanySettings } from "@/composables/useCompanySettings";
-import { notifySuccess } from "@/utils/notifications";
+import { notifyInfo, notifySuccess } from "@/utils/notifications";
 import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -157,8 +156,10 @@ const formatDate = (d) => new Date(d).toLocaleDateString();
 const isSameDay = (d) => new Date(d).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
 
 const openPDF = () => {
+  notifyInfo("PDF download started.");
   const branchId = localStorage.getItem("selectedBranchId") || "";
   window.open(`${import.meta.env.VITE_API_BASE_URL}/invoice-pdf/sales/${route.params.id}?token=${localStorage.getItem("token")}&branchId=${encodeURIComponent(branchId)}&languageMode=${encodeURIComponent(pdfLanguage.value)}`, "_blank");
+  notifySuccess("PDF opened successfully.");
 };
 
 const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
@@ -168,7 +169,7 @@ const createSaleReturn = async () => {
 };
 
 const deletePayment = async (payment) => {
-  if (!window.confirm("Delete this payment?")) return;
+  if (!window.confirm("Are you sure you want to delete this record?")) return;
   await http.delete(`/payments/${payment._id}`);
   notifySuccess("Payment deleted successfully.");
   await load();
@@ -195,4 +196,5 @@ th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .orange { background: #f59e0b; }
 .gray { background: #6b7280; }
 .payments { margin-top: 30px; }
+.icon-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 </style>

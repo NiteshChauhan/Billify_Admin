@@ -37,9 +37,9 @@
           <td class="debit">{{ l.debit ? money(l.debit) : '-' }}</td>
           <td class="credit">{{ l.credit ? money(l.credit) : '-' }}</td>
           <td>{{ money(l.balance) }}</td>
-          <td>
-            <router-link v-if="l.billType === 'PURCHASE'" :to="`/purchase/${l.billId}`">View</router-link>
-            <router-link v-else-if="l.billType === 'SALE'" :to="`/sales/${l.billId}`">View</router-link>
+          <td class="actions">
+            <ActionIconButton v-if="l.billType === 'PURCHASE'" icon="view" :to="`/purchase/${l.billId}`" title="View purchase bill" variant="view" />
+            <ActionIconButton v-else-if="l.billType === 'SALE'" icon="view" :to="`/sales/${l.billId}`" title="View sale bill" variant="view" />
             <span v-else>-</span>
           </td>
         </tr>
@@ -60,6 +60,8 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const route = useRoute();
 const { formatCurrency: money } = useCurrency();
@@ -93,6 +95,7 @@ onUnmounted(() => {
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
 const exportPdf = () => {
+  notifyInfo("PDF download started.");
   const userId = route.params.userId || route.params.id;
   const params = new URLSearchParams({
     ...getFinancialYearParams(),
@@ -105,6 +108,7 @@ const exportPdf = () => {
     `${import.meta.env.VITE_API_BASE_URL}/users/${userId}/ledger/pdf?${params.toString()}`,
     "_blank",
   );
+  notifySuccess("PDF opened successfully.");
 };
 
 const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
@@ -123,4 +127,5 @@ th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
 .loading { text-align: center; margin-top: 60px; }
 .debit { color: #b45309; }
 .credit { color: #166534; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

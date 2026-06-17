@@ -6,7 +6,7 @@
         <p class="subhead">Manage customer and supplier contacts in one place.</p>
       </div>
       <router-link to="/users/create" class="btn action-btn">
-        + Add User
+        Add User
       </router-link>
     </div>
 
@@ -30,8 +30,8 @@
           <td>{{ formatType(u) }}</td>
           <td>{{ money(u.balance ?? u.openingBalance ?? 0) }}</td>
           <td class="actions">
-            <router-link :to="`/users/${u._id}/ledger`">View</router-link>
-            <router-link :to="`/users/edit/${u._id}`">Edit</router-link>
+            <ActionIconButton icon="view" :to="`/users/${u._id}/ledger`" title="View ledger" variant="view" />
+            <ActionIconButton icon="edit" :to="`/users/edit/${u._id}`" title="Edit user" variant="edit" />
           </td>
         </tr>
       </tbody>
@@ -44,6 +44,7 @@ import { ref, onMounted } from "vue";
 import { getUsersApi } from "@/api/userApi";
 import { getUserRoles } from "@/utils/userRole";
 import { useCurrency } from "@/composables/useCurrency";
+import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
 const users = ref([]);
 const { formatCurrency: money } = useCurrency();
@@ -112,10 +113,6 @@ td {
   display: flex;
   gap: 10px;
 }
-.actions a {
-  color: #1d4ed8;
-}
-
 @media (max-width: 720px) {
   .header {
     align-items: stretch;
