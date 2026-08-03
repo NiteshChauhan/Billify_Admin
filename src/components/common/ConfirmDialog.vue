@@ -39,7 +39,7 @@ const cancel = () => {
 .confirm-backdrop { align-items: center; background: rgba(15, 23, 42, 0.45); display: flex; inset: 0; justify-content: center; padding: 18px; position: fixed; z-index: 2000; }
 .confirm-dialog { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24); max-width: 420px; padding: 22px; width: 100%; }
 .confirm-dialog h3 { color: #0f172a; font-size: 18px; margin: 0 0 8px; }
-.confirm-dialog p { color: #475569; line-height: 1.55; margin: 0; }
+.confirm-dialog p { color: #475569; line-height: 1.55; margin: 0; white-space: pre-line; }
 .confirm-dialog__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 .btn { border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-weight: 700; padding: 10px 14px; }
 .btn:disabled { cursor: not-allowed; opacity: 0.65; }

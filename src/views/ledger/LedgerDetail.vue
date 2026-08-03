@@ -4,7 +4,13 @@
     <div class="header">
       <div class="left">
         <router-link class="btn icon" to="/ledger">←</router-link>
-        <div class="party">{{ party.name }}</div>
+        <div>
+          <div class="party">{{ party.name }}</div>
+          <div class="party-mobile">
+            <span>Mobile: {{ party.mobile || party.phone || "-" }}</span>
+            <ContactActions :phone="party.mobile || party.phone" message="Hello" />
+          </div>
+        </div>
       </div>
       <div class="center">
         <select v-model="type" class="type" @change="load">
@@ -84,6 +90,7 @@ import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import ContactActions from "@/components/common/ContactActions.vue";
 import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const route = useRoute();
@@ -189,6 +196,7 @@ const printBill = (row) => {
 .header { display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; align-items: center; gap: 12px; margin-bottom: 16px; }
 .left { display: flex; align-items: center; gap: 10px; }
 .party { font-weight: 700; font-size: 16px; color: #0f172a; }
+.party-mobile { display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 13px; margin-top: 4px; flex-wrap: wrap; }
 .center { display: flex; align-items: center; gap: 8px; justify-content: flex-start; flex-wrap: wrap; max-width: 480px; }
 .center .type { padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; width: 140px; background: #fff; }
 .center input { padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; width: 150px; }

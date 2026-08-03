@@ -15,7 +15,7 @@
         <tr>
           <th>Sr No</th>
           <th>Name</th>
-          <th>Phone</th>
+          <th>Mobile</th>
           <th>Type</th>
           <th>Balance</th>
           <th>Contact</th>
@@ -27,10 +27,10 @@
         <tr v-for="(u, idx) in users" :key="u._id">
           <td>{{ idx + 1 }}</td>
           <td>{{ u.name }}</td>
-          <td>{{ u.phone || "-" }}</td>
+          <td>{{ u.mobile || u.phone || "-" }}</td>
           <td>{{ formatType(u) }}</td>
           <td>{{ money(u.balance ?? u.openingBalance ?? 0) }}</td>
-          <td><ContactActions :phone="u.phone || u.mobile" message="Hello" /></td>
+          <td><ContactActions :phone="u.mobile || u.phone" message="Hello" /></td>
           <td class="actions">
             <ActionIconButton icon="view" :to="`/users/${u._id}/ledger`" title="View ledger" variant="view" />
             <ActionIconButton icon="edit" :to="`/users/edit/${u._id}`" title="Edit user" variant="edit" />

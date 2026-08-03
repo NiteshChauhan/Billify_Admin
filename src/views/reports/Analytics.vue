@@ -9,8 +9,35 @@
     </div>
 
     <div class="filters">
-      <label>From <input v-model="filters.from" type="date" /></label>
-      <label>To <input v-model="filters.to" type="date" /></label>
+      <label>From <input v-model="filters.fromDate" type="date" /></label>
+      <label>To <input v-model="filters.toDate" type="date" /></label>
+      <CreatableAutocomplete
+        v-model="selectedParty"
+        label="Party Name"
+        :options="partyOptions"
+        :get-option-label="(party) => party.name"
+        :get-option-meta="(party) => party.phone || party.mobile || ''"
+        placeholder="Search party"
+        @search="searchParties"
+      />
+      <CreatableAutocomplete
+        v-model="selectedApplicator"
+        label="Applicator"
+        :options="applicatorOptions"
+        :get-option-label="(applicator) => applicator.name"
+        :get-option-meta="(applicator) => applicator.mobile || ''"
+        placeholder="Search applicator"
+        @search="searchApplicators"
+      />
+      <CreatableAutocomplete
+        v-model="selectedProduct"
+        label="Product"
+        :options="productOptions"
+        :get-option-label="(product) => product.name"
+        :get-option-meta="(product) => product.sku || product.unitName || ''"
+        placeholder="Search product"
+        @search="searchProducts"
+      />
       <label>Status
         <select v-model="filters.paymentStatus">
           <option value="">All</option>
@@ -19,6 +46,7 @@
           <option value="PAID">Paid</option>
         </select>
       </label>
+      <button class="primary-btn" type="button" @click="loadAnalytics">Apply</button>
       <button class="secondary-btn" type="button" @click="resetFilters">Reset</button>
     </div>
 
@@ -66,6 +94,23 @@
     </div>
 
     <section class="panel distribution">
+      <h2>Party Summary</h2>
+      <table>
+        <thead><tr><th>Party</th><th>Invoices</th><th>Total</th><th>Paid</th><th>Outstanding</th></tr></thead>
+        <tbody>
+          <tr v-for="row in data.partySummary" :key="row.partyId || row.partyName">
+            <td>{{ row.partyName }}</td>
+            <td>{{ row.invoiceCount }}</td>
+            <td>{{ money(row.totalValue) }}</td>
+            <td>{{ money(row.paidAmount) }}</td>
+            <td>{{ money(row.outstandingAmount) }}</td>
+          </tr>
+          <tr v-if="!loading && !data.partySummary.length"><td colspan="5" class="empty">No party rows</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel distribution">
       <h2>Party / Site / Applicator Distribution</h2>
       <table>
         <thead><tr><th>Party</th><th>Site</th><th>Applicator</th><th>Item</th><th>Qty</th><th>Value</th></tr></thead>
@@ -91,7 +136,13 @@ import { getInvoiceAnalyticsApi } from "@/api/analyticsApi";
 import { notifyError } from "@/utils/notifications";
 
 const loading = ref(false);
-const filters = reactive({ from: "", to: "", paymentStatus: "" });
+const filters = reactive({ fromDate: "", toDate: "", paymentStatus: "" });
+const selectedParty = ref(null);
+const selectedApplicator = ref(null);
+const selectedProduct = ref(null);
+const partyOptions = ref([]);
+const applicatorOptions = ref([]);
+const productOptions = ref([]);
 const data = reactive({
   overview: {},
   applicatorSummary: [],
@@ -115,6 +166,9 @@ const loadAnalytics = async () => {
   loading.value = true;
   try {
     const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+    if (selectedParty.value?._id) params.partyId = selectedParty.value._id;
+    if (selectedApplicator.value?._id) params.applicatorId = selectedApplicator.value._id;
+    if (selectedProduct.value?._id) params.productId = selectedProduct.value._id;
     const res = await getInvoiceAnalyticsApi(params);
     Object.assign(data, {
       overview: res.data.overview || {},
@@ -135,12 +189,29 @@ const resetFilters = () => {
   loadAnalytics();
 };
 
+const searchParties = async (term = "") => {
+  const res = await http.get("/parties", { params: { search: term, limit: 20 }, skipNotify: true });
+  partyOptions.value = res.data || [];
+};
+
+const searchApplicators = async (term = "") => {
+  const res = await listApplicatorsApi({ search: term, status: "active", limit: 20 });
+  applicatorOptions.value = res.data?.data || [];
+};
+
+const searchProducts = async (term = "") => {
+  const res = await http.get("/products", { params: { search: term, status: "active", limit: 20 }, skipNotify: true });
+  productOptions.value = res.data?.data || res.data || [];
+};
 watch(filters, () => {
   clearTimeout(timer);
   timer = setTimeout(loadAnalytics, 300);
 });
 
-onMounted(loadAnalytics);
+onMounted(async () => {
+  await Promise.all([searchParties(), searchApplicators(), searchProducts()]);
+  await loadAnalytics();
+});
 </script>
 
 <style scoped>

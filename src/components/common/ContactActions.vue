@@ -2,24 +2,23 @@
   <span class="contact-actions">
     <ActionIconButton
       icon="message"
-      title="Open WhatsApp"
+      :title="hasValidPhone ? 'Open WhatsApp' : 'Mobile number unavailable'"
       variant="success"
-      :disabled="!phone"
       @click="handleWhatsApp"
     />
     <ActionIconButton
       icon="phone"
-      title="Call"
+      :title="hasValidPhone ? 'Call' : 'Mobile number unavailable'"
       variant="view"
-      :disabled="!phone"
       @click="handleCall"
     />
   </span>
 </template>
 
 <script setup>
+import { computed } from "vue";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
-import { openWhatsApp, startPhoneCall } from "@/utils/contactActions";
+import { normalizePhoneNumber, openWhatsApp, startPhoneCall } from "@/utils/contactActions";
 import { notifyWarning } from "@/utils/notifications";
 
 const props = defineProps({
@@ -27,12 +26,29 @@ const props = defineProps({
   phone: { type: String, default: "" },
 });
 
-const handleWhatsApp = () => {
-  if (!openWhatsApp(props.phone, props.message)) notifyWarning("Phone number is not available");
+const hasValidPhone = computed(() => Boolean(normalizePhoneNumber(props.phone)));
+
+const stopEvent = (event) => {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
 };
 
-const handleCall = () => {
-  if (!startPhoneCall(props.phone)) notifyWarning("Phone number is not available");
+const handleWhatsApp = (event) => {
+  stopEvent(event);
+  try {
+    openWhatsApp(props.phone, props.message);
+  } catch (error) {
+    notifyWarning(error.message || "Mobile number is unavailable.");
+  }
+};
+
+const handleCall = (event) => {
+  stopEvent(event);
+  try {
+    startPhoneCall(props.phone);
+  } catch (error) {
+    notifyWarning(error.message || "Mobile number is unavailable.");
+  }
 };
 </script>
 

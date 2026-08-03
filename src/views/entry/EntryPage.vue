@@ -55,7 +55,9 @@
         :get-option-meta="(party) => party.phone || party.mobile || ''"
         placeholder="Search party"
         required
+        allow-create
         @search="searchParties"
+        @create="requestCreateParty"
       />
       <CreatableAutocomplete
         v-model="selectedProduct"
@@ -65,7 +67,9 @@
         :get-option-label="(product) => product.name"
         :get-option-meta="(product) => product.sku || product.unitName || ''"
         placeholder="Search product"
+        allow-create
         @search="searchProducts"
+        @create="openProductQuickCreate"
         @select="handleProductSelect"
       />
       <CreatableAutocomplete
@@ -77,6 +81,8 @@
         :get-option-label="(site) => site.name"
         :get-option-meta="(site) => site.address || ''"
         placeholder="Select site"
+        allow-create
+        @create="requestCreateSite"
       />
       <CreatableAutocomplete
         v-model="selectedApplicator"
@@ -87,6 +93,8 @@
         :get-option-label="(applicator) => applicator.name"
         :get-option-meta="(applicator) => applicator.mobile || ''"
         placeholder="Select applicator"
+        allow-create
+        @create="openApplicatorQuickCreate"
       />
       <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
         No applicator assigned for this site
@@ -117,6 +125,7 @@
           <tr>
             <th>Sr No</th>
             <th>Product Name</th>
+            <th>Unit</th>
             <th>Available Stock</th>
             <th>{{ isReturn ? 'Remaining Qty' : 'Quantity' }}</th>
             <th>Price</th>
@@ -129,6 +138,7 @@
           <tr v-for="(row, idx) in rows" :key="`${row.productId}-${idx}`">
             <td>{{ idx + 1 }}</td>
             <td>{{ row.productName }}</td>
+            <td>{{ row.unitName || "-" }}</td>
             <td>{{ row.availableStock ?? '-' }}</td>
             <td>
               <input
@@ -162,7 +172,7 @@
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="7" class="empty">No products selected</td>
+            <td colspan="8" class="empty">No products selected</td>
           </tr>
         </tbody>
       </table>
@@ -294,6 +304,82 @@
       <button class="btn btn-success" @click="save">{{ isEditMode ? "Update" : "Save" }}</button>
     </div>
 
+
+    <div v-if="productQuickCreateOpen" class="modal-wrap">
+      <div class="quick-create-modal">
+        <div class="modal-head">
+          <h3>Create Product</h3>
+          <button class="icon" type="button" @click="closeProductQuickCreate">X</button>
+        </div>
+        <label class="field-inline">
+          <span>Product Name *</span>
+          <input v-model.trim="productDraft.name" />
+        </label>
+        <label class="field-inline">
+          <span>SKU / Code *</span>
+          <input v-model.trim="productDraft.sku" />
+        </label>
+        <label class="field-inline">
+          <span>Unit</span>
+          <select v-model="productDraft.unitId">
+            <option value="">No unit</option>
+            <option v-for="unit in units" :key="unit._id" :value="unit._id">
+              {{ unit.name }}{{ unit.shortName ? ` (${unit.shortName})` : "" }}
+            </option>
+          </select>
+        </label>
+        <div class="quick-row">
+          <input v-model.trim="newUnitName" placeholder="Create unit, e.g. Bag" />
+          <button class="btn btn-secondary" type="button" @click="requestCreateUnit(newUnitName, 'product')">Create Unit</button>
+        </div>
+        <label class="field-inline">
+          <span>Sale Rate</span>
+          <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.price" />
+        </label>
+        <label class="field-inline">
+          <span>Purchase Rate</span>
+          <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.openingRate" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn btn-success" type="button" @click="createProductFromDraft">Create and Select</button>
+          <button class="btn btn-secondary" type="button" @click="closeProductQuickCreate">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="applicatorQuickCreateOpen" class="modal-wrap">
+      <div class="quick-create-modal">
+        <div class="modal-head">
+          <h3>Create Applicator</h3>
+          <button class="icon" type="button" @click="closeApplicatorQuickCreate">X</button>
+        </div>
+        <label class="field-inline">
+          <span>Applicator Name *</span>
+          <input v-model.trim="applicatorDraft.name" />
+        </label>
+        <label class="field-inline">
+          <span>Mobile</span>
+          <input v-model.trim="applicatorDraft.mobile" />
+        </label>
+        <label class="checkbox-inline">
+          <input v-model="applicatorDraft.assign" type="checkbox" :disabled="!selectedParty || !selectedSiteId" />
+          <span>Assign to selected Party and Site</span>
+        </label>
+        <div class="modal-actions">
+          <button class="btn btn-success" type="button" @click="createApplicatorFromDraft">Create and Select</button>
+          <button class="btn btn-secondary" type="button" @click="closeApplicatorQuickCreate">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <ConfirmDialog
+      v-model:open="confirmState.open"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      confirm-label="Create and Select"
+      :loading="confirmState.loading"
+      @confirm="confirmQuickCreate"
+    />
     <aside :class="['panel left', { open: leftOpen }]">
       <div class="panel-head">
         <h3>Select Party</h3>
@@ -325,17 +411,27 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
 import { hasUserRole } from "@/utils/userRole";
 import { useCurrency } from "@/composables/useCurrency";
 import { useCompanySettings } from "@/composables/useCompanySettings";
-import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import { notifyError, notifySuccess, notifyWarning, parseApiError } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
 import CreatableAutocomplete from "@/components/common/CreatableAutocomplete.vue";
-import { listAssignedApplicatorsBySiteApi, listSitesApi } from "@/api/applicatorApi";
+import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import {
+  createApplicatorApi,
+  createAssignmentApi,
+  createSiteApi,
+  createUnitApi,
+  listAssignedApplicatorsBySiteApi,
+  listSitesApi,
+  listUnitsApi,
+} from "@/api/applicatorApi";
+import { createProductApi } from "@/api/productApi";
 
 const route = useRoute();
 const router = useRouter();
@@ -379,6 +475,13 @@ const replacementPaymentType = ref("credit");
 const replacementBankAccountId = ref("");
 const replacementPaidAmount = ref(0);
 const replacementInvoiceNo = ref("");
+const units = ref([]);
+const newUnitName = ref("");
+const productQuickCreateOpen = ref(false);
+const productDraft = reactive({ name: "", sku: "", unitId: "", price: 0, openingRate: 0 });
+const applicatorQuickCreateOpen = ref(false);
+const applicatorDraft = reactive({ name: "", mobile: "", assign: true });
+const confirmState = reactive({ open: false, loading: false, type: "", name: "", title: "", message: "", context: null });
 
 const leftOpen = ref(false);
 const rightOpen = ref(false);
@@ -499,6 +602,167 @@ const handleProductSelect = async (product) => {
   await addProduct(product);
   selectedProduct.value = null;
 };
+const openConfirm = ({ type, name, title, message, context = null }) => {
+  confirmState.type = type;
+  confirmState.name = String(name || "").trim();
+  confirmState.title = title;
+  confirmState.message = message;
+  confirmState.context = context;
+  confirmState.loading = false;
+  confirmState.open = true;
+};
+
+const requestCreateParty = (name) => {
+  openConfirm({
+    type: "party",
+    name,
+    title: `Create new ${transactionType.value === "purchase" ? "supplier" : "customer"}?`,
+    message: `Name: ${name}\n\nThis record will be saved and available for future use.`,
+  });
+};
+
+const requestCreateSite = (name) => {
+  if (!selectedParty.value?._id) {
+    notifyWarning("Please select a Party first.");
+    return;
+  }
+  openConfirm({
+    type: "site",
+    name,
+    title: "Create new Site?",
+    message: `Site: ${name}\nParty: ${selectedParty.value.name}`,
+  });
+};
+
+const requestCreateUnit = (name, source = "invoice") => {
+  const unitName = String(name || "").trim();
+  if (!unitName) {
+    notifyWarning("Unit name is required.");
+    return;
+  }
+  openConfirm({
+    type: "unit",
+    name: unitName,
+    title: "Create new Unit?",
+    message: `Name: ${unitName}\n\nThis unit will be saved and available for products.`,
+    context: { source },
+  });
+};
+
+const openProductQuickCreate = (name) => {
+  const safeName = String(name || "").trim();
+  productDraft.name = safeName;
+  productDraft.sku = safeName ? safeName.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) : "";
+  productDraft.unitId = "";
+  productDraft.price = 0;
+  productDraft.openingRate = 0;
+  productQuickCreateOpen.value = true;
+};
+
+const closeProductQuickCreate = () => {
+  productQuickCreateOpen.value = false;
+};
+
+const openApplicatorQuickCreate = (name) => {
+  applicatorDraft.name = String(name || "").trim();
+  applicatorDraft.mobile = "";
+  applicatorDraft.assign = Boolean(selectedParty.value?._id && selectedSiteId.value);
+  applicatorQuickCreateOpen.value = true;
+};
+
+const closeApplicatorQuickCreate = () => {
+  applicatorQuickCreateOpen.value = false;
+};
+
+const createProductFromDraft = async () => {
+  if (!productDraft.name || !productDraft.sku) {
+    notifyWarning("Product name and SKU are required.");
+    return;
+  }
+  try {
+    const res = await createProductApi({
+      name: productDraft.name,
+      sku: productDraft.sku,
+      unitId: productDraft.unitId || null,
+      price: Number(productDraft.price || 0),
+      openingRate: Number(productDraft.openingRate || 0),
+      openingStock: 0,
+    });
+    const product = res.data;
+    products.value = [product, ...products.value.filter((entry) => String(entry._id) !== String(product._id))];
+    await addProduct(product);
+    selectedProduct.value = null;
+    closeProductQuickCreate();
+    notifySuccess("Product created and selected successfully.");
+  } catch (err) {
+    notifyError(parseApiError(err));
+  }
+};
+
+const createApplicatorFromDraft = async () => {
+  if (!applicatorDraft.name) {
+    notifyWarning("Applicator name is required.");
+    return;
+  }
+  try {
+    const res = await createApplicatorApi({ name: applicatorDraft.name, mobile: applicatorDraft.mobile, status: "active" });
+    const applicator = res.data;
+    const option = { _id: applicator._id, name: applicator.name, mobile: applicator.mobile || "" };
+    assignedApplicators.value = [
+      { applicatorId: option._id, applicatorName: option.name, mobile: option.mobile },
+      ...assignedApplicators.value.filter((entry) => String(entry.applicatorId?._id || entry.applicatorId) !== String(option._id)),
+    ];
+    selectedApplicatorId.value = option._id;
+
+    if (applicatorDraft.assign && selectedParty.value?._id && selectedSiteId.value) {
+      try {
+        await createAssignmentApi({ partyId: selectedParty.value._id, siteId: selectedSiteId.value, applicatorId: option._id, status: "active" });
+      } catch (assignmentError) {
+        if (assignmentError.response?.status !== 409) throw assignmentError;
+      }
+    }
+
+    closeApplicatorQuickCreate();
+    notifySuccess("Applicator created and selected successfully.");
+  } catch (err) {
+    notifyError(parseApiError(err));
+  }
+};
+
+const confirmQuickCreate = async () => {
+  confirmState.loading = true;
+  try {
+    if (confirmState.type === "party") {
+      const role = transactionType.value === "purchase" ? "supplier" : "customer";
+      const res = await http.post("/parties", { name: confirmState.name, roles: [role] });
+      parties.value = [res.data, ...parties.value.filter((party) => String(party._id) !== String(res.data._id))];
+      selectParty(res.data);
+      notifySuccess("Party created and selected successfully.");
+    }
+
+    if (confirmState.type === "site") {
+      const res = await createSiteApi({ name: confirmState.name, partyId: selectedParty.value._id });
+      sites.value = [res.data, ...sites.value.filter((site) => String(site._id) !== String(res.data._id))];
+      selectedSiteId.value = res.data._id;
+      await loadApplicatorsForSite(selectedParty.value._id, selectedSiteId.value, false);
+      notifySuccess("Site created and selected successfully.");
+    }
+
+    if (confirmState.type === "unit") {
+      const res = await createUnitApi({ name: confirmState.name });
+      units.value = [res.data, ...units.value.filter((unit) => String(unit._id) !== String(res.data._id))];
+      if (confirmState.context?.source === "product") productDraft.unitId = res.data._id;
+      newUnitName.value = "";
+      notifySuccess("Unit created successfully.");
+    }
+
+    confirmState.open = false;
+  } catch (err) {
+    notifyError(parseApiError(err));
+  } finally {
+    confirmState.loading = false;
+  }
+};
 
 const selectParty = (party) => {
   selectedParty.value = party;
@@ -527,6 +791,7 @@ const addProduct = async (product) => {
   rows.value.push({
     productId: product._id,
     productName: product.name,
+    unitName: product.unitName || product.unitId?.name || product.attributes?.unit || product.attributes?.Unit || "",
     quantity: 1,
     rate: lastRate ?? 0,
     totalAmount: roundCurrency(lastRate ?? 0),
@@ -620,6 +885,7 @@ const loadReturnBillItems = async () => {
     .map((item) => ({
       productId: item.productId,
       productName: item.productName,
+      unitName: item.unitName || item.productId?.unitName || "",
       availableStock: item.remainingQty,
       maxQty: item.remainingQty,
       quantity: 0,
@@ -683,6 +949,7 @@ const loadEditInvoice = async () => {
     return {
       productId,
       productName: item.productId?.name || product?.name || item.productName || "-",
+      unitName: item.unitName || item.productId?.unitName || product?.unitName || "",
       quantity: Number(item.quantity || 0),
       rate: Number(item.rate || 0),
       totalAmount: roundCurrency(Number(item.amount ?? Number(item.quantity || 0) * Number(item.rate || 0))),
@@ -868,10 +1135,11 @@ const save = async () => {
 onMounted(async () => {
   loading.value = true;
   await ensureCompanySettingsLoaded();
-  const [productRes, partyRes, bankRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts")]);
+  const [productRes, partyRes, bankRes, unitRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts"), listUnitsApi({ status: "active" })]);
   products.value = productRes.data || [];
   parties.value = partyRes.data || [];
   bankAccounts.value = bankRes.data || [];
+  units.value = unitRes.data || [];
   if (isEditMode.value) {
     await loadEditInvoice();
   } else {
@@ -1186,6 +1454,38 @@ input[type="number"] {
   background: #eef2ff;
 }
 
+.modal-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.45);
+  z-index: 1200;
+}
+
+.quick-create-modal {
+  background: #fff;
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  max-width: 460px;
+  padding: 18px;
+  width: 100%;
+}
+
+.modal-actions,
+.quick-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.quick-row input {
+  flex: 1;
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -1201,7 +1501,39 @@ input[type="number"] {
     left: 0;
   }
 
-  .overlay {
+  .modal-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.45);
+  z-index: 1200;
+}
+
+.quick-create-modal {
+  background: #fff;
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  max-width: 460px;
+  padding: 18px;
+  width: 100%;
+}
+
+.modal-actions,
+.quick-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.quick-row input {
+  flex: 1;
+}
+
+.overlay {
     left: 0;
   }
 }
@@ -1216,5 +1548,3 @@ input[type="number"] {
   }
 }
 </style>
-
-

@@ -4,7 +4,7 @@
 
     <div class="grid">
       <input v-model="form.name" placeholder="Name *" />
-      <input v-model="form.phone" placeholder="Phone" />
+      <input v-model="form.mobile" type="tel" placeholder="Mobile Number" autocomplete="tel" />
       <input v-model="form.email" placeholder="Email" />
       <input v-model="form.gstNumber" placeholder="GST Number" />
     </div>
@@ -58,6 +58,7 @@ const isEdit = computed(() => !!route.params.id);
 const form = reactive({
   name: "",
   phone: "",
+  mobile: "",
   email: "",
   address: "",
   gstNumber: "",
@@ -71,6 +72,7 @@ const mapUserToForm = (user) => {
   if (!user) return;
   form.name = user.name || "";
   form.phone = user.phone || "";
+  form.mobile = user.mobile || user.phone || "";
   form.email = user.email || "";
   form.address = user.address || "";
   form.gstNumber = user.gstNumber || "";
@@ -97,7 +99,8 @@ const buildPayload = () => {
   const roles = [...new Set(form.roles)].map((r) => (r === "vendor" ? "customer" : r));
   return {
     name: form.name.trim(),
-    phone: form.phone,
+    phone: form.mobile,
+    mobile: form.mobile,
     email: form.email,
     address: form.address,
     gstNumber: form.gstNumber,
@@ -116,6 +119,12 @@ const save = async () => {
 
   if (!form.roles.length) {
     notifyWarning("Select at least one role");
+    return;
+  }
+
+  const mobileDigits = String(form.mobile || "").replace(/\D/g, "");
+  if (mobileDigits && (mobileDigits.length < 7 || mobileDigits.length > 15)) {
+    notifyWarning("Please enter a valid mobile number.");
     return;
   }
 

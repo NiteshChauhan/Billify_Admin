@@ -1,33 +1,33 @@
+const MIN_PHONE_DIGITS = 10;
+const MAX_PHONE_DIGITS = 15;
+
 export const normalizePhoneNumber = (phone, defaultCountryCode = "91") => {
-  const raw = String(phone || "").trim();
-  if (!raw) return { digits: "", tel: "" };
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
 
-  let digits = raw.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) digits = digits.slice(1);
   if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.startsWith("0") && digits.length === 11) digits = digits.slice(1);
-  if (digits.length === 10 && defaultCountryCode) digits = `${defaultCountryCode}${digits}`;
+  if (digits.startsWith("0") && digits.length === 11) digits = `${defaultCountryCode}${digits.slice(1)}`;
+  if (digits.length === 10) digits = `${defaultCountryCode}${digits}`;
 
-  return { digits, tel: `+${digits}` };
+  if (digits.length < MIN_PHONE_DIGITS || digits.length > MAX_PHONE_DIGITS) return "";
+  return digits;
 };
 
 export const getWhatsAppUrl = (phone, message = "") => {
-  const { digits } = normalizePhoneNumber(phone);
-  if (!digits) return "";
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) return "";
   const text = message ? `?text=${encodeURIComponent(message)}` : "";
-  return `https://wa.me/${digits}${text}`;
+  return `https://wa.me/${normalized}${text}`;
 };
 
 export const openWhatsApp = (phone, message = "") => {
   const url = getWhatsAppUrl(phone, message);
-  if (!url) return false;
+  if (!url) throw new Error("Valid mobile number is not available");
   window.open(url, "_blank", "noopener,noreferrer");
-  return true;
 };
 
 export const startPhoneCall = (phone) => {
-  const { tel } = normalizePhoneNumber(phone);
-  if (!tel) return false;
-  window.location.href = `tel:${tel}`;
-  return true;
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) throw new Error("Valid mobile number is not available");
+  window.location.href = `tel:+${normalized}`;
 };

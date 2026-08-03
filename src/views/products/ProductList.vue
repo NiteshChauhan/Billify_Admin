@@ -135,8 +135,9 @@
       </select>
       <select v-model="stockFilter">
         <option value="all">All</option>
-        <option value="available">Available</option>
-        <option value="not_available">Not Available</option>
+        <option value="available">In Stock</option>
+        <option value="low">Low Stock</option>
+        <option value="not_available">Out of Stock</option>
       </select>
       <select v-model.number="limit" @change="changePage(1)">
         <option :value="20">20</option>
@@ -174,12 +175,14 @@
           <td>{{ p.name }}</td>
           <td>{{ p.openingStock }}</td>
           <td>{{ p.unitName || p.attributes?.unit || p.attributes?.Unit || "-" }}</td>
-          <td>{{ p.stock }}</td>
+          <td>{{ stockValue(p) }}</td>
           <td>{{ money(p.price) }}</td>
           <td>{{ money(p.lastSalePrice) }}</td>
           <td>{{ money(p.lastPurchasePrice) }}</td>
           <td>{{ p.isDeleted ? "Deleted" : "Active" }}</td>
-          <td>{{ p.stock > 0 ? "Available" : "Not Available" }}</td>
+          <td>
+            <span :class="['stock-badge', stockStatusClass(p)]">{{ stockStatus(p) }}</span>
+          </td>
           <td class="actions">
             <ActionIconButton icon="view" :to="`/products/${p._id}/history`" title="View product history" variant="view" />
             <ActionIconButton v-if="!p.isDeleted" icon="edit" title="Edit product" variant="edit" @click="openEdit(p)" />
@@ -226,9 +229,9 @@
             X
           </button>
         </div>
-        <label>Product Name (English) <input v-model="form.name" /></label>
-        <label>Product Name (Arabic) <input v-model="form.nameAr" /></label>
-        <label>Product Name (Hindi) <input v-model="form.nameHi" /></label>
+        <label>Product Name  <input v-model="form.name" /></label>
+        <!-- <label>Product Name (Arabic) <input v-model="form.nameAr" /></label>
+        <label>Product Name (Hindi) <input v-model="form.nameHi" /></label> -->
         <label>SKU <input v-model="form.sku" /></label>
         <label>Unit
           <select v-model="form.unitId">
@@ -238,6 +241,10 @@
             </option>
           </select>
         </label>
+        <div class="quick-row">
+          <input v-model.trim="newUnitName" placeholder="Create unit, e.g. Bag" />
+          <button class="btn-light" type="button" @click="quickAddUnit">Create Unit</button>
+        </div>
         <label
           >Opening Stock
           <input
@@ -246,9 +253,21 @@
             step="0.01"
             v-model.number="form.openingStock"
         /></label>
+        <div v-if="editId" class="stock-panel">
+          <span>Current Stock</span>
+          <strong>{{ form.currentStock }} {{ selectedUnitLabel }}</strong>
+        </div>
         <label
           >Price
           <input type="number" min="0" step="0.01" v-model.number="form.price"
+        /></label>
+        <label
+          >Low Stock Alert
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            v-model.number="form.lowStockAlert"
         /></label>
         <label
           >Opening Rate (Cost)
@@ -266,6 +285,15 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-model:open="unitConfirm.open"
+      title="Create new Unit?"
+      :message="`Name: ${unitConfirm.name}`"
+      confirm-label="Create and Select"
+      :loading="unitConfirm.loading"
+      @confirm="confirmQuickAddUnit"
+    />
 
     <div v-if="showUploadModal" class="modal-wrap">
       <div class="modal upload-modal">
@@ -355,11 +383,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import http from "@/api/http";
-import { listUnitsApi } from "@/api/applicatorApi";
+import { createUnitApi, listUnitsApi } from "@/api/applicatorApi";
 import { useCurrency } from "@/composables/useCurrency";
-import { notifySuccess, notifyWarning } from "@/utils/notifications";
+import { notifyError, notifySuccess, notifyWarning, parseApiError } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 
 const rows = ref([]);
 const search = ref("");
@@ -371,6 +400,8 @@ const total = ref(0);
 const totalPages = ref(1);
 const loading = ref(false);
 const capitalSummary = ref({ totalProducts: 0, totalStockQty: 0, totalCapital: 0 });
+const newUnitName = ref("");
+const unitConfirm = reactive({ open: false, loading: false, name: "" });
 
 const showModal = ref(false);
 const editId = ref("");
@@ -381,8 +412,10 @@ const form = reactive({
   sku: "",
   unitId: "",
   openingStock: 0,
+  currentStock: 0,
   price: 0,
   openingRate: 0,
+  lowStockAlert: 0,
 });
 const fileInput = ref(null);
 const uploadMessage = ref("");
@@ -426,6 +459,24 @@ const formattedErrors = computed(() =>
     error: normalizeReason(item.error),
   })),
 );
+const selectedUnitLabel = computed(() => {
+  const unit = units.value.find((entry) => String(entry._id) === String(form.unitId));
+  return unit?.shortName || unit?.name || "";
+});
+const stockValue = (product) => Number(product.currentStock ?? product.stock ?? 0);
+const stockStatus = (product) => {
+  const stock = stockValue(product);
+  const lowStockAlert = Number(product.lowStockAlert || 0);
+  if (stock <= 0) return "Out of Stock";
+  if (lowStockAlert > 0 && stock <= lowStockAlert) return "Low Stock";
+  return "In Stock";
+};
+const stockStatusClass = (product) =>
+  ({
+    "In Stock": "in-stock",
+    "Low Stock": "low-stock",
+    "Out of Stock": "out-stock",
+  })[stockStatus(product)];
 const uploadModalTitle = computed(() => {
   if (uploadState.value === "success") return "Upload Completed ✅";
   if (uploadState.value === "error") return "Upload Failed";
@@ -498,9 +549,10 @@ const filteredRows = computed(() => {
     .filter((p) => (p.name || "").toLowerCase().includes(q))
     .filter((p) => {
       if (statusFilter.value === "deleted") return true;
-      if (stockFilter.value === "available") return Number(p.stock || 0) > 0;
+      if (stockFilter.value === "available") return stockStatus(p) === "In Stock";
+      if (stockFilter.value === "low") return stockStatus(p) === "Low Stock";
       if (stockFilter.value === "not_available")
-        return Number(p.stock || 0) <= 0;
+        return stockStatus(p) === "Out of Stock";
       return true;
     });
 });
@@ -537,8 +589,10 @@ const openCreate = () => {
   form.sku = "";
   form.unitId = "";
   form.openingStock = 0;
+  form.currentStock = 0;
   form.price = 0;
   form.openingRate = 0;
+  form.lowStockAlert = 0;
   showModal.value = true;
 };
 
@@ -550,13 +604,40 @@ const openEdit = (product) => {
   form.sku = product.sku || "";
   form.unitId = product.unitId || "";
   form.openingStock = Number(product.openingStock || 0);
+  form.currentStock = stockValue(product);
   form.price = Number(product.price || 0);
   form.openingRate = Number(product.openingRate || 0);
+  form.lowStockAlert = Number(product.lowStockAlert || 0);
   showModal.value = true;
 };
 
 const closeModal = () => {
   showModal.value = false;
+};
+const quickAddUnit = () => {
+  const name = String(newUnitName.value || "").trim();
+  if (!name) {
+    notifyWarning("Unit name is required.");
+    return;
+  }
+  unitConfirm.name = name;
+  unitConfirm.open = true;
+};
+
+const confirmQuickAddUnit = async () => {
+  unitConfirm.loading = true;
+  try {
+    const res = await createUnitApi({ name: unitConfirm.name });
+    units.value = [res.data, ...units.value.filter((unit) => String(unit._id) !== String(res.data._id))];
+    form.unitId = res.data?._id || "";
+    newUnitName.value = "";
+    unitConfirm.open = false;
+    notifySuccess("Unit created successfully.");
+  } catch (err) {
+    notifyError(parseApiError(err));
+  } finally {
+    unitConfirm.loading = false;
+  }
 };
 
 const downloadSampleCsv = async () => {
@@ -677,6 +758,7 @@ const save = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      lowStockAlert: Number(form.lowStockAlert || 0),
     });
     notifySuccess("Product updated successfully.");
   } else {
@@ -689,6 +771,7 @@ const save = async () => {
       openingStock: Number(form.openingStock || 0),
       price: Number(form.price || 0),
       openingRate: Number(form.openingRate || 0),
+      lowStockAlert: Number(form.lowStockAlert || 0),
     });
     notifySuccess("Product created successfully.");
   }
@@ -752,6 +835,53 @@ const restoreProduct = async (product) => {
   color: #64748b;
   font-size: 13px;
 }
+.quick-row {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-row input {
+  flex: 1;
+}
+
+.stock-panel {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.stock-panel span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stock-badge.in-stock {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.stock-badge.low-stock {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.stock-badge.out-stock {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .toolbar {
   display: flex;
   gap: 10px;

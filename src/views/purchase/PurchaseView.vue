@@ -12,6 +12,7 @@
       <thead>
         <tr>
           <th style="text-align: left">Product</th>
+          <th>Unit</th>
           <th>Qty</th>
           <th>Rate</th>
           <th>Amount</th>
@@ -19,7 +20,8 @@
       </thead>
       <tbody>
         <tr v-for="i in data.items" :key="i._id">
-          <td style="text-align: left">{{ i.productId?.name }}</td>
+          <td style="text-align: left">{{ i.productId?.name || i.productName }}</td>
+          <td>{{ i.unitName || i.productId?.unitName || "-" }}</td>
           <td>{{ i.quantity }}</td>
           <td>{{ money(i.rate) }}</td>
           <td>{{ money(i.amount) }}</td>
