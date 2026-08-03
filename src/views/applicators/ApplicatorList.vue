@@ -55,6 +55,7 @@
               <th>City</th>
               <th>Status</th>
               <th>Created</th>
+              <th>Contact</th>
               <th class="action-col">Action</th>
             </tr>
           </thead>
@@ -71,6 +72,7 @@
               <td>{{ row.city || "-" }}</td>
               <td><span :class="['status-badge', row.status]">{{ row.status }}</span></td>
               <td>{{ row.createdAt ? new Date(row.createdAt).toLocaleDateString("en-GB") : "-" }}</td>
+              <td><ContactActions :phone="row.mobile" message="Hello" /></td>
               <td class="actions">
                 <ActionIconButton icon="view" :to="`/applicators/${row._id}/view`" title="View applicator" variant="view" />
                 <ActionIconButton icon="edit" :to="`/applicators/${row._id}/edit`" title="Edit applicator" variant="edit" />
@@ -84,7 +86,7 @@
               </td>
             </tr>
             <tr v-if="!rows.length">
-              <td colspan="7" class="empty">
+              <td colspan="8" class="empty">
                 <div>
                   <strong>{{ loading ? "Loading applicators..." : "No applicators found" }}</strong>
                   <span v-if="!loading">Try a different search or add a new applicator.</span>
@@ -106,6 +108,7 @@ import {
   updateApplicatorStatusApi,
 } from "@/api/applicatorApi";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import ContactActions from "@/components/common/ContactActions.vue";
 import { notifyError, notifySuccess, parseApiError } from "@/utils/notifications";
 
 const rows = ref([]);
@@ -413,3 +416,6 @@ tbody tr:hover {
   }
 }
 </style>
+
+
+

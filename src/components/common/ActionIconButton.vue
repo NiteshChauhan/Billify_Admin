@@ -4,11 +4,13 @@
     :to="to"
     :href="href"
     :type="buttonType"
-    :class="['action-icon-button', `action-icon-button--${variant}`]"
+    :class="['action-icon-button', `action-icon-button--${variant}`, { 'is-disabled': disabled }]"
     :title="title"
     :aria-label="ariaLabel || title"
+    :aria-disabled="disabled ? 'true' : undefined"
+    :disabled="componentType === 'button' ? disabled : undefined"
     v-bind="linkAttrs"
-    @click="$emit('click', $event)"
+    @click="handleClick"
   >
     <svg
       aria-hidden="true"
@@ -70,6 +72,14 @@
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3-3" />
       </template>
+      <template v-else-if="icon === 'phone'">
+        <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.6a16 16 0 0 0 6.3 6.3l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7A2 2 0 0 1 22 16.9Z" />
+      </template>
+      <template v-else-if="icon === 'message'">
+        <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.7 8.7 0 0 1-3.7-.8L3 21l1.8-5A8.4 8.4 0 1 1 21 11.5Z" />
+        <path d="M8 10h8" />
+        <path d="M8 14h5" />
+      </template>
       <template v-else-if="icon === 'reset'">
         <path d="M3 12a9 9 0 1 0 3-6.7" />
         <path d="M3 3v6h6" />
@@ -91,19 +101,29 @@ const props = defineProps({
   href: { type: String, default: "" },
   icon: { type: String, required: true },
   target: { type: String, default: "" },
+  disabled: { type: Boolean, default: false },
   title: { type: String, required: true },
   to: { type: [String, Object], default: "" },
   type: { type: String, default: "button" },
   variant: { type: String, default: "view" },
 });
 
-defineEmits(["click"]);
+const emit = defineEmits(["click"]);
 
 const componentType = computed(() => {
   if (props.to) return "router-link";
   if (props.href) return "a";
   return "button";
 });
+
+const handleClick = (event) => {
+  if (props.disabled) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  emit("click", event);
+};
 
 const buttonType = computed(() => (componentType.value === "button" ? props.type : undefined));
 const linkAttrs = computed(() => {
@@ -135,6 +155,13 @@ const linkAttrs = computed(() => {
 
 .action-icon-button:hover {
   transform: translateY(-1px);
+}
+
+.action-icon-button.is-disabled,
+.action-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .action-icon-button__icon {
@@ -202,3 +229,5 @@ const linkAttrs = computed(() => {
   border-color: #fde68a;
 }
 </style>
+
+

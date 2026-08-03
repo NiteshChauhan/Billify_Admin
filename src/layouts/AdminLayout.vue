@@ -148,6 +148,11 @@ const navItems = [
     icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   },
   {
+    label: "Analytics",
+    path: "/reports/analytics",
+    icon: "M4 19V5M8 19v-7M12 19V9M16 19v-4M20 19V7",
+  },
+  {
     label: "Profit & Loss",
     path: "/reports/profit",
     icon: "M4 16l4-4 3 3 6-6",
@@ -525,3 +530,4 @@ onMounted(async () => {
   }
 }
 </style>
+

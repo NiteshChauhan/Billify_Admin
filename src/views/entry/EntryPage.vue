@@ -46,28 +46,48 @@
           </option>
         </select>
       </label>
-      <button class="btn btn-primary" @click="leftOpen = true">Select Party</button>
-      <button class="btn btn-secondary" @click="rightOpen = true">Select Product</button>
-      <label class="field-inline compact">
-        <span>Site</span>
-        <select v-model="selectedSiteId">
-          <option value="">No site</option>
-          <option v-for="site in sites" :key="site._id" :value="site._id">{{ site.name }}</option>
-        </select>
-      </label>
-      <label class="field-inline compact">
-        <span>Applicator</span>
-        <select v-model="selectedApplicatorId">
-          <option value="">No applicator</option>
-          <option
-            v-for="applicator in assignedApplicators"
-            :key="applicator.applicatorId"
-            :value="applicator.applicatorId"
-          >
-            {{ applicator.applicatorName }}
-          </option>
-        </select>
-      </label>
+      <CreatableAutocomplete
+        v-model="selectedParty"
+        class="tool-autocomplete"
+        :label="transactionType === 'purchase' ? 'Supplier' : 'Customer'"
+        :options="filteredParties"
+        :get-option-label="(party) => party.name"
+        :get-option-meta="(party) => party.phone || party.mobile || ''"
+        placeholder="Search party"
+        required
+        @search="searchParties"
+      />
+      <CreatableAutocomplete
+        v-model="selectedProduct"
+        class="tool-autocomplete"
+        label="Product"
+        :options="filteredProducts"
+        :get-option-label="(product) => product.name"
+        :get-option-meta="(product) => product.sku || product.unitName || ''"
+        placeholder="Search product"
+        @search="searchProducts"
+        @select="handleProductSelect"
+      />
+      <CreatableAutocomplete
+        v-model="selectedSite"
+        class="tool-autocomplete"
+        label="Site"
+        :disabled="!selectedParty"
+        :options="sites"
+        :get-option-label="(site) => site.name"
+        :get-option-meta="(site) => site.address || ''"
+        placeholder="Select site"
+      />
+      <CreatableAutocomplete
+        v-model="selectedApplicator"
+        class="tool-autocomplete"
+        label="Applicator"
+        :disabled="!selectedSiteId"
+        :options="assignedApplicatorOptions"
+        :get-option-label="(applicator) => applicator.name"
+        :get-option-meta="(applicator) => applicator.mobile || ''"
+        placeholder="Select applicator"
+      />
       <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
         No applicator assigned for this site
       </span>
@@ -314,6 +334,7 @@ import { useCurrency } from "@/composables/useCurrency";
 import { useCompanySettings } from "@/composables/useCompanySettings";
 import { notifySuccess, notifyWarning } from "@/utils/notifications";
 import Loader from "@/components/Loader.vue";
+import CreatableAutocomplete from "@/components/common/CreatableAutocomplete.vue";
 import { listAssignedApplicatorsBySiteApi, listSitesApi } from "@/api/applicatorApi";
 
 const route = useRoute();
@@ -335,6 +356,7 @@ const rows = ref([]);
 const products = ref([]);
 const parties = ref([]);
 const selectedParty = ref(null);
+const selectedProduct = ref(null);
 const sites = ref([]);
 const selectedSiteId = ref("");
 const assignedApplicators = ref([]);
@@ -376,6 +398,24 @@ const filteredParties = computed(() => {
   return parties.value
     .filter((p) => hasUserRole(p, role))
     .filter((p) => (p.name || "").toLowerCase().includes(q));
+});
+
+const assignedApplicatorOptions = computed(() =>
+  assignedApplicators.value.map((entry) => ({
+    _id: entry.applicatorId?._id || entry.applicatorId,
+    name: entry.applicatorName || entry.applicatorId?.name || "Applicator",
+    mobile: entry.mobile || entry.applicatorId?.mobile || "",
+  })),
+);
+
+const selectedSite = computed({
+  get: () => sites.value.find((site) => String(site._id) === String(selectedSiteId.value)) || null,
+  set: (site) => { selectedSiteId.value = site?._id || ""; },
+});
+
+const selectedApplicator = computed({
+  get: () => assignedApplicatorOptions.value.find((applicator) => String(applicator._id) === String(selectedApplicatorId.value)) || null,
+  set: (applicator) => { selectedApplicatorId.value = applicator?._id || ""; },
 });
 
 const filteredProducts = computed(() => {
@@ -442,6 +482,22 @@ const updateReplacementRowFromTotal = (row) => {
 const closePanels = () => {
   leftOpen.value = false;
   rightOpen.value = false;
+};
+
+const searchParties = async (term = "") => {
+  const role = transactionType.value === "purchase" ? "supplier" : "customer";
+  const res = await http.get("/parties", { params: { search: term, role, limit: 20 }, skipNotify: true });
+  parties.value = res.data || [];
+};
+
+const searchProducts = async (term = "") => {
+  const res = await http.get("/products", { params: { search: term, status: "active", limit: 20 }, skipNotify: true });
+  products.value = res.data?.data || res.data || [];
+};
+
+const handleProductSelect = async (product) => {
+  await addProduct(product);
+  selectedProduct.value = null;
 };
 
 const selectParty = (party) => {
@@ -1160,4 +1216,5 @@ input[type="number"] {
   }
 }
 </style>
+
 

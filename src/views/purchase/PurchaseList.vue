@@ -11,11 +11,20 @@
     <div class="filters">
       <label>From Date <input type="date" v-model="fromDate" /></label>
       <label>To Date <input type="date" v-model="toDate" /></label>
-      <label>Status
+      <label>Search <input v-model.trim="search" placeholder="Invoice, supplier, item" @keyup.enter="load" /></label>
+      <label>Record
         <select v-model="statusFilter">
           <option value="active">Active</option>
           <option value="deleted">Deleted</option>
           <option value="all">All</option>
+        </select>
+      </label>
+      <label>Payment
+        <select v-model="paymentStatus">
+          <option value="">All</option>
+          <option value="DUE">Due</option>
+          <option value="PARTIAL">Partial</option>
+          <option value="PAID">Paid</option>
         </select>
       </label>
       <button class="btn-light" @click="load">Apply</button>
@@ -31,6 +40,7 @@
             <th>Date</th>
             <th>Supplier Name</th>
             <th>Purchase Number</th>
+            <th>Contact</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
             <th>Record</th>
@@ -45,6 +55,7 @@
             <td>{{ fmt(inv.invoiceDate) }}</td>
             <td>{{ inv.partyId?.name || inv.supplierId?.name || '-' }}</td>
             <td>{{ inv.invoiceNo }}</td>
+            <td><ContactActions :phone="inv.partyId?.phone || inv.partyId?.mobile" :message="`Regarding invoice ${inv.invoiceNo}`" /></td>
             <td>{{ money(inv.totalAmount) }}</td>
             <td>{{ money(inv.paidAmount) }}</td>
             <td><span :class="['pill', inv.isDeleted ? 'DELETED' : 'ACTIVE']">{{ inv.isDeleted ? 'Deleted' : 'Active' }}</span></td>
@@ -59,7 +70,7 @@
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="10" class="empty">No purchase invoices found</td>
+            <td colspan="11" class="empty">No purchase invoices found</td>
           </tr>
         </tbody>
       </table>
@@ -81,12 +92,15 @@ import { useCurrency } from "@/composables/useCurrency";
 import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import ContactActions from "@/components/common/ContactActions.vue";
 import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
 const statusFilter = ref("active");
+const paymentStatus = ref("");
+const search = ref("");
 const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
 
@@ -166,3 +180,7 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .empty { text-align: center; color: #64748b; }
 .summary { margin-top: 12px; display: grid; gap: 6px; justify-content: end; text-align: right; }
 </style>
+
+
+
+

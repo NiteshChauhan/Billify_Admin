@@ -76,6 +76,7 @@ const routes = [
       { path: "reports/ageing", component: () => import("@/views/reports/AgeingReport.vue") },
       { path: "reports/supplier-outstanding", component: () => import("@/views/reports/SupplierOutstanding.vue") },
       { path: "reports/daily", component: () => import("@/views/reports/DailyReport.vue") },
+      { path: "reports/analytics", name: "invoice-analytics", component: () => import("@/views/reports/Analytics.vue") },
       { path: "reports/profit", component: () => import("@/views/dashboard/ProfitDashboard.vue") },
       { path: "expenses", name: "expenses", component: () => import("@/views/expenses/Expenses.vue") },
       { path: "loans", name: "loans", component: () => import("@/views/loans/Loans.vue") },
@@ -98,3 +99,4 @@ router.beforeEach((to) => {
 });
 
 export default router;
+

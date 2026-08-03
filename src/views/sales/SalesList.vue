@@ -11,11 +11,20 @@
     <div class="filters">
       <label>From Date <input type="date" v-model="fromDate" /></label>
       <label>To Date <input type="date" v-model="toDate" /></label>
-      <label>Status
+      <label>Search <input v-model.trim="search" placeholder="Invoice, party, item" @keyup.enter="load" /></label>
+      <label>Record
         <select v-model="statusFilter">
           <option value="active">Active</option>
           <option value="deleted">Deleted</option>
           <option value="all">All</option>
+        </select>
+      </label>
+      <label>Payment
+        <select v-model="paymentStatus">
+          <option value="">All</option>
+          <option value="DUE">Due</option>
+          <option value="PARTIAL">Partial</option>
+          <option value="PAID">Paid</option>
         </select>
       </label>
       <label>Applicator
@@ -39,6 +48,7 @@
             <th>Date</th>
             <th>Customer Name</th>
             <th>Sale Number</th>
+            <th>Contact</th>
             <th>Applicator</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
@@ -54,6 +64,7 @@
             <td>{{ fmt(inv.invoiceDate) }}</td>
             <td>{{ inv.partyId?.name || inv.customerId?.name || inv.vendorId?.name || '-' }}</td>
             <td>{{ inv.invoiceNo }}</td>
+            <td><ContactActions :phone="inv.partyId?.phone || inv.partyId?.mobile || inv.customerTel" :message="`Regarding invoice ${inv.invoiceNo}`" /></td>
             <td>{{ inv.applicatorName || 'Unassigned' }}</td>
             <td>{{ money(inv.totalAmount) }}</td>
             <td>{{ money(inv.paidAmount) }}</td>
@@ -69,7 +80,7 @@
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="11" class="empty">No sales found</td>
+            <td colspan="12" class="empty">No sales found</td>
           </tr>
         </tbody>
       </table>
@@ -92,12 +103,15 @@ import Loader from "@/components/Loader.vue";
 import { getPdfLanguage } from "@/utils/pdfLanguage";
 import { listApplicatorsApi } from "@/api/applicatorApi";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
+import ContactActions from "@/components/common/ContactActions.vue";
 import { notifyInfo, notifySuccess } from "@/utils/notifications";
 
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
 const statusFilter = ref("active");
+const paymentStatus = ref("");
+const search = ref("");
 const applicatorId = ref("");
 const applicators = ref([]);
 const loading = ref(false);
@@ -119,6 +133,8 @@ const load = async () => {
   if (toDate.value) params.to = toDate.value;
   params.status = statusFilter.value;
   if (applicatorId.value) params.applicatorId = applicatorId.value;
+  if (paymentStatus.value) params.paymentStatus = paymentStatus.value;
+  if (search.value) params.search = search.value;
   const res = await http.get("/sales", { params });
   rows.value = res.data || [];
   loading.value = false;
@@ -184,3 +200,7 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .empty { text-align: center; color: #64748b; }
 .summary { margin-top: 12px; display: grid; gap: 6px; justify-content: end; text-align: right; }
 </style>
+
+
+
+
