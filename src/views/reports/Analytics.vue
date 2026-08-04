@@ -16,7 +16,7 @@
         label="Party Name"
         :options="partyOptions"
         :get-option-label="(party) => party.name"
-        :get-option-meta="(party) => party.phone || party.mobile || ''"
+        :get-option-meta="(party) => party.mobile || party.phone || ''"
         placeholder="Search party"
         @search="searchParties"
       />
@@ -70,7 +70,7 @@
               <td>{{ formatQty(row.totalQuantity) }}</td>
               <td>{{ money(row.totalValue) }}</td>
             </tr>
-            <tr v-if="!data.applicatorSummary.length"><td colspan="4" class="empty">No data</td></tr>
+            <tr v-if="!data.applicatorSummary.length"><td colspan="4" class="empty">No analytics data found</td></tr>
           </tbody>
         </table>
       </section>
@@ -87,7 +87,7 @@
               <td>{{ formatQty(row.totalQuantity) }}</td>
               <td>{{ money(row.totalValue) }}</td>
             </tr>
-            <tr v-if="!data.itemSummary.length"><td colspan="4" class="empty">No data</td></tr>
+            <tr v-if="!data.itemSummary.length"><td colspan="4" class="empty">No analytics data found</td></tr>
           </tbody>
         </table>
       </section>
@@ -105,7 +105,7 @@
             <td>{{ money(row.paidAmount) }}</td>
             <td>{{ money(row.outstandingAmount) }}</td>
           </tr>
-          <tr v-if="!loading && !data.partySummary.length"><td colspan="5" class="empty">No party rows</td></tr>
+          <tr v-if="!loading && !data.partySummary.length"><td colspan="5" class="empty">No analytics data found</td></tr>
         </tbody>
       </table>
     </section>
@@ -123,7 +123,7 @@
             <td>{{ formatQty(row.totalQuantity) }}</td>
             <td>{{ money(row.totalValue) }}</td>
           </tr>
-          <tr v-if="!loading && !data.distribution.length"><td colspan="6" class="empty">No distribution rows</td></tr>
+          <tr v-if="!loading && !data.distribution.length"><td colspan="6" class="empty">No analytics data found</td></tr>
         </tbody>
       </table>
     </section>
@@ -132,8 +132,11 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import http from "@/api/http";
 import { getInvoiceAnalyticsApi } from "@/api/analyticsApi";
-import { notifyError } from "@/utils/notifications";
+import { listApplicatorsApi } from "@/api/applicatorApi";
+import CreatableAutocomplete from "@/components/common/CreatableAutocomplete.vue";
+import { notifyError, parseApiError } from "@/utils/notifications";
 
 const loading = ref(false);
 const filters = reactive({ fromDate: "", toDate: "", paymentStatus: "" });
@@ -147,6 +150,7 @@ const data = reactive({
   overview: {},
   applicatorSummary: [],
   itemSummary: [],
+  partySummary: [],
   distribution: [],
 });
 
@@ -170,22 +174,27 @@ const loadAnalytics = async () => {
     if (selectedApplicator.value?._id) params.applicatorId = selectedApplicator.value._id;
     if (selectedProduct.value?._id) params.productId = selectedProduct.value._id;
     const res = await getInvoiceAnalyticsApi(params);
+    const payload = res.data?.data || res.data || {};
     Object.assign(data, {
-      overview: res.data.overview || {},
-      applicatorSummary: res.data.applicatorSummary || [],
-      itemSummary: res.data.itemSummary || [],
-      distribution: res.data.distribution || [],
+      overview: payload.overview || payload.metrics || {},
+      applicatorSummary: payload.applicatorSummary || payload.byApplicator || [],
+      itemSummary: payload.itemSummary || payload.byProduct || [],
+      partySummary: payload.partySummary || payload.byParty || [],
+      distribution: payload.distribution || [],
     });
   } catch (err) {
-    notifyError(err.response?.data?.message || "Failed to load analytics");
+    notifyError(parseApiError(err) || "Unable to load Analytics.");
   } finally {
     loading.value = false;
   }
 };
 const resetFilters = () => {
-  filters.from = "";
-  filters.to = "";
+  filters.fromDate = "";
+  filters.toDate = "";
   filters.paymentStatus = "";
+  selectedParty.value = null;
+  selectedApplicator.value = null;
+  selectedProduct.value = null;
   loadAnalytics();
 };
 
@@ -196,7 +205,7 @@ const searchParties = async (term = "") => {
 
 const searchApplicators = async (term = "") => {
   const res = await listApplicatorsApi({ search: term, status: "active", limit: 20 });
-  applicatorOptions.value = res.data?.data || [];
+  applicatorOptions.value = res.data?.data || res.data || [];
 };
 
 const searchProducts = async (term = "") => {

@@ -52,7 +52,7 @@
         :label="transactionType === 'purchase' ? 'Supplier' : 'Customer'"
         :options="filteredParties"
         :get-option-label="(party) => party.name"
-        :get-option-meta="(party) => party.phone || party.mobile || ''"
+        :get-option-meta="(party) => party.mobile || party.phone || ''"
         placeholder="Search party"
         required
         allow-create
@@ -305,6 +305,27 @@
     </div>
 
 
+    <div v-if="partyQuickCreateOpen" class="modal-wrap">
+      <div class="quick-create-modal">
+        <div class="modal-head">
+          <h3>Create {{ transactionType === "purchase" ? "Supplier" : "Customer" }}</h3>
+          <button class="icon" type="button" @click="closePartyQuickCreate">X</button>
+        </div>
+        <label class="field-inline">
+          <span>Party Name *</span>
+          <input v-model.trim="partyDraft.name" />
+        </label>
+        <label class="field-inline">
+          <span>Mobile Number</span>
+          <input v-model.trim="partyDraft.mobile" type="tel" placeholder="Enter mobile number" autocomplete="tel" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn btn-success" type="button" @click="createPartyFromDraft">Create and Select</button>
+          <button class="btn btn-secondary" type="button" @click="closePartyQuickCreate">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="productQuickCreateOpen" class="modal-wrap">
       <div class="quick-create-modal">
         <div class="modal-head">
@@ -339,6 +360,14 @@
         <label class="field-inline">
           <span>Purchase Rate</span>
           <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.openingRate" />
+        </label>
+        <label class="field-inline">
+          <span>Opening Stock</span>
+          <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.openingStock" placeholder="Enter opening stock" />
+        </label>
+        <label class="field-inline">
+          <span>Low Stock Alert</span>
+          <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.lowStockAlert" />
         </label>
         <div class="modal-actions">
           <button class="btn btn-success" type="button" @click="createProductFromDraft">Create and Select</button>
@@ -477,8 +506,10 @@ const replacementPaidAmount = ref(0);
 const replacementInvoiceNo = ref("");
 const units = ref([]);
 const newUnitName = ref("");
+const partyQuickCreateOpen = ref(false);
+const partyDraft = reactive({ name: "", mobile: "" });
 const productQuickCreateOpen = ref(false);
-const productDraft = reactive({ name: "", sku: "", unitId: "", price: 0, openingRate: 0 });
+const productDraft = reactive({ name: "", sku: "", unitId: "", price: 0, openingRate: 0, openingStock: 0, lowStockAlert: 0 });
 const applicatorQuickCreateOpen = ref(false);
 const applicatorDraft = reactive({ name: "", mobile: "", assign: true });
 const confirmState = reactive({ open: false, loading: false, type: "", name: "", title: "", message: "", context: null });
@@ -500,7 +531,7 @@ const filteredParties = computed(() => {
   const role = transactionType.value === "purchase" ? "supplier" : "customer";
   return parties.value
     .filter((p) => hasUserRole(p, role))
-    .filter((p) => (p.name || "").toLowerCase().includes(q));
+    .filter((p) => `${p.name || ""} ${p.mobile || ""} ${p.phone || ""}`.toLowerCase().includes(q));
 });
 
 const assignedApplicatorOptions = computed(() =>
@@ -613,12 +644,13 @@ const openConfirm = ({ type, name, title, message, context = null }) => {
 };
 
 const requestCreateParty = (name) => {
-  openConfirm({
-    type: "party",
-    name,
-    title: `Create new ${transactionType.value === "purchase" ? "supplier" : "customer"}?`,
-    message: `Name: ${name}\n\nThis record will be saved and available for future use.`,
-  });
+  partyDraft.name = String(name || "").trim();
+  partyDraft.mobile = "";
+  partyQuickCreateOpen.value = true;
+};
+
+const closePartyQuickCreate = () => {
+  partyQuickCreateOpen.value = false;
 };
 
 const requestCreateSite = (name) => {
@@ -656,6 +688,8 @@ const openProductQuickCreate = (name) => {
   productDraft.unitId = "";
   productDraft.price = 0;
   productDraft.openingRate = 0;
+  productDraft.openingStock = 0;
+  productDraft.lowStockAlert = 0;
   productQuickCreateOpen.value = true;
 };
 
@@ -674,9 +708,44 @@ const closeApplicatorQuickCreate = () => {
   applicatorQuickCreateOpen.value = false;
 };
 
+const createPartyFromDraft = async () => {
+  if (!partyDraft.name) {
+    notifyWarning("Party name is required.");
+    return;
+  }
+
+  const mobileDigits = String(partyDraft.mobile || "").replace(/\D/g, "");
+  if (mobileDigits && (mobileDigits.length < 7 || mobileDigits.length > 15)) {
+    notifyWarning("Please enter a valid mobile number.");
+    return;
+  }
+
+  try {
+    const role = transactionType.value === "purchase" ? "supplier" : "customer";
+    const res = await http.post("/parties", {
+      name: partyDraft.name,
+      mobile: partyDraft.mobile,
+      phone: partyDraft.mobile,
+      roles: [role],
+    });
+    parties.value = [res.data, ...parties.value.filter((party) => String(party._id) !== String(res.data._id))];
+    selectParty(res.data);
+    closePartyQuickCreate();
+    notifySuccess("Party created and selected successfully.");
+  } catch (err) {
+    notifyError(parseApiError(err) || "Unable to create Party.");
+  }
+};
+
 const createProductFromDraft = async () => {
   if (!productDraft.name || !productDraft.sku) {
     notifyWarning("Product name and SKU are required.");
+    return;
+  }
+  const openingStock = Number(productDraft.openingStock || 0);
+  const lowStockAlert = Number(productDraft.lowStockAlert || 0);
+  if (!Number.isFinite(openingStock) || !Number.isFinite(lowStockAlert) || openingStock < 0 || lowStockAlert < 0) {
+    notifyWarning("Please enter valid non-negative stock values.");
     return;
   }
   try {
@@ -686,7 +755,8 @@ const createProductFromDraft = async () => {
       unitId: productDraft.unitId || null,
       price: Number(productDraft.price || 0),
       openingRate: Number(productDraft.openingRate || 0),
-      openingStock: 0,
+      openingStock,
+      lowStockAlert,
     });
     const product = res.data;
     products.value = [product, ...products.value.filter((entry) => String(entry._id) !== String(product._id))];
