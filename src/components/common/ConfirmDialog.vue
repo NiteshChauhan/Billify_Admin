@@ -1,11 +1,11 @@
 <template>
   <Teleport to="body">
     <div v-if="open" class="confirm-backdrop" @click.self="cancel">
-      <section class="confirm-dialog" role="dialog" aria-modal="true" :aria-labelledby="titleId">
+      <section ref="dialogRef" class="confirm-dialog" role="dialog" aria-modal="true" :aria-labelledby="titleId" tabindex="-1">
         <h3 :id="titleId">{{ title }}</h3>
         <p>{{ message }}</p>
         <div class="confirm-dialog__actions">
-          <button type="button" class="btn secondary" :disabled="loading" @click="cancel">{{ cancelLabel }}</button>
+          <button type="button" class="btn secondary" :disabled="loading" data-autofocus @click="cancel">{{ cancelLabel }}</button>
           <button type="button" :class="['btn', variant]" :disabled="loading" @click="$emit('confirm')">
             {{ loading ? 'Please wait...' : confirmLabel }}
           </button>
@@ -16,6 +16,9 @@
 </template>
 
 <script setup>
+import { ref, toRef } from "vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
+
 const props = defineProps({
   cancelLabel: { type: String, default: "Cancel" },
   confirmLabel: { type: String, default: "Confirm" },
@@ -28,11 +31,13 @@ const props = defineProps({
 
 const emit = defineEmits(["cancel", "confirm", "update:open"]);
 const titleId = `confirm-${Math.random().toString(36).slice(2)}`;
+const dialogRef = ref(null);
 const cancel = () => {
   if (props.loading) return;
   emit("update:open", false);
   emit("cancel");
 };
+useFocusTrap(toRef(props, "open"), dialogRef, { onEscape: cancel });
 </script>
 
 <style scoped>

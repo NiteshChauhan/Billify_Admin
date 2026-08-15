@@ -6,15 +6,20 @@
         <label class="field-inline">
           <span>Bill Number</span>
           <input
+            ref="billNumberInput"
             v-model.trim="billNumber"
-            :disabled="isAutoBillNumber"
-            :readonly="isAutoBillNumber"
-            :placeholder="isAutoBillNumber ? 'Auto generated' : 'Enter bill number'"
+            :class="{ invalid: billNumberStatus.exists }"
+            placeholder="Enter bill number"
+            @keydown.enter.prevent="focusDate"
           />
+          <small v-if="isAutoBillNumber" class="field-help">Auto-generated. You can edit this Bill Number.</small>
+          <small v-if="billNumberStatus.checking" class="field-help">Checking Bill Number...</small>
+          <small v-else-if="billNumberStatus.exists" class="field-error">Sales Bill Number already exists.</small>
+          <small v-else-if="billNumberStatus.checked && billNumber" class="field-ok">Bill Number available</small>
         </label>
         <label class="field-inline">
           <span>Date</span>
-          <input type="date" v-model="invoiceDate" />
+          <input ref="invoiceDateInput" type="date" v-model="invoiceDate" @keydown.enter.prevent="focusParty" />
         </label>
       </div>
     </div>
@@ -47,6 +52,7 @@
         </select>
       </label>
       <CreatableAutocomplete
+        ref="partyAutocomplete"
         v-model="selectedParty"
         class="tool-autocomplete"
         :label="transactionType === 'purchase' ? 'Supplier' : 'Customer'"
@@ -58,8 +64,10 @@
         allow-create
         @search="searchParties"
         @create="requestCreateParty"
+        @select="focusSite"
       />
       <CreatableAutocomplete
+        ref="productAutocomplete"
         v-model="selectedProduct"
         class="tool-autocomplete"
         label="Product"
@@ -73,6 +81,7 @@
         @select="handleProductSelect"
       />
       <CreatableAutocomplete
+        ref="siteAutocomplete"
         v-model="selectedSite"
         class="tool-autocomplete"
         label="Site"
@@ -83,8 +92,10 @@
         placeholder="Select site"
         allow-create
         @create="requestCreateSite"
+        @select="focusApplicator"
       />
       <CreatableAutocomplete
+        ref="applicatorAutocomplete"
         v-model="selectedApplicator"
         class="tool-autocomplete"
         label="Applicator"
@@ -95,6 +106,7 @@
         placeholder="Select applicator"
         allow-create
         @create="openApplicatorQuickCreate"
+        @select="focusProduct"
       />
       <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
         No applicator assigned for this site
@@ -142,15 +154,17 @@
             <td>{{ row.availableStock ?? '-' }}</td>
             <td>
               <input
+                :ref="(el) => setQuantityInput(el, idx)"
                 type="number"
                 min="0"
                 :max="isReturn ? row.maxQty : undefined"
                 v-model.number="row.quantity"
                 @input="updateRowFromRate(row)"
+                @keydown.enter.prevent="focusRowRate(idx)"
               />
             </td>
             <td>
-              <input type="number" min="0" v-model.number="row.rate" :readonly="isReturn" @input="updateRowFromRate(row)" />
+              <input :ref="(el) => setRateInput(el, idx)" type="number" min="0" v-model.number="row.rate" :readonly="isReturn" @input="updateRowFromRate(row)" @keydown.enter.prevent="focusRowTotal(idx)" />
               <div v-if="isSaleOrPurchase && row.lastRate !== null" class="rate-hint">
                 Last rate: {{ money(row.lastRate) }}
               </div>
@@ -162,8 +176,10 @@
                 type="number"
                 min="0"
                  :step="decimalStep"
+                :ref="(el) => setTotalInput(el, idx)"
                 v-model.number="row.totalAmount"
                 @input="updateRowFromTotal(row)"
+                @keydown.enter.prevent="handleRowTotalEnter(idx)"
               />
               <span v-else>{{ money(row.totalAmount) }}</span>
             </td>
@@ -301,40 +317,40 @@
         <input type="number" min="0" :step="decimalStep" v-model.number="paidAmount" />
       </label>
       <strong>Total Bill Amount: {{ money(totalAmount) }}</strong>
-      <button class="btn btn-success" @click="save">{{ isEditMode ? "Update" : "Save" }}</button>
+      <button class="btn btn-success" :disabled="saving" @click="save">{{ saving ? "Saving..." : isEditMode ? "Update" : "Save" }}</button>
     </div>
 
 
-    <div v-if="partyQuickCreateOpen" class="modal-wrap">
-      <div class="quick-create-modal">
+    <div v-if="partyQuickCreateOpen" class="modal-wrap" @click.self="closePartyQuickCreate">
+      <form ref="partyModalRef" class="quick-create-modal" role="dialog" aria-modal="true" aria-labelledby="party-create-title" tabindex="-1" @submit.prevent="createPartyFromDraft">
         <div class="modal-head">
-          <h3>Create {{ transactionType === "purchase" ? "Supplier" : "Customer" }}</h3>
+          <h3 id="party-create-title">Create {{ transactionType === "purchase" ? "Supplier" : "Customer" }}</h3>
           <button class="icon" type="button" @click="closePartyQuickCreate">X</button>
         </div>
         <label class="field-inline">
           <span>Party Name *</span>
-          <input v-model.trim="partyDraft.name" />
+          <input ref="partyNameInput" v-model.trim="partyDraft.name" />
         </label>
         <label class="field-inline">
           <span>Mobile Number</span>
-          <input v-model.trim="partyDraft.mobile" type="tel" placeholder="Enter mobile number" autocomplete="tel" />
+          <input ref="partyMobileInput" v-model.trim="partyDraft.mobile" type="tel" placeholder="Enter mobile number" autocomplete="tel" data-autofocus />
         </label>
         <div class="modal-actions">
-          <button class="btn btn-success" type="button" @click="createPartyFromDraft">Create and Select</button>
+          <button class="btn btn-success" type="submit" :disabled="creatingParty">{{ creatingParty ? "Creating..." : "Create and Select" }}</button>
           <button class="btn btn-secondary" type="button" @click="closePartyQuickCreate">Cancel</button>
         </div>
-      </div>
+      </form>
     </div>
 
-    <div v-if="productQuickCreateOpen" class="modal-wrap">
-      <div class="quick-create-modal">
+    <div v-if="productQuickCreateOpen" class="modal-wrap" @click.self="closeProductQuickCreate">
+      <form ref="productModalRef" class="quick-create-modal" role="dialog" aria-modal="true" aria-labelledby="product-create-title" tabindex="-1" @submit.prevent="createProductFromDraft">
         <div class="modal-head">
-          <h3>Create Product</h3>
+          <h3 id="product-create-title">Create Product</h3>
           <button class="icon" type="button" @click="closeProductQuickCreate">X</button>
         </div>
         <label class="field-inline">
           <span>Product Name *</span>
-          <input v-model.trim="productDraft.name" />
+          <input ref="productNameInput" v-model.trim="productDraft.name" />
         </label>
         <label class="field-inline">
           <span>SKU / Code *</span>
@@ -342,7 +358,7 @@
         </label>
         <label class="field-inline">
           <span>Unit</span>
-          <select v-model="productDraft.unitId">
+          <select ref="productUnitInput" v-model="productDraft.unitId" data-autofocus>
             <option value="">No unit</option>
             <option v-for="unit in units" :key="unit._id" :value="unit._id">
               {{ unit.name }}{{ unit.shortName ? ` (${unit.shortName})` : "" }}
@@ -370,16 +386,16 @@
           <input type="number" min="0" :step="decimalStep" v-model.number="productDraft.lowStockAlert" />
         </label>
         <div class="modal-actions">
-          <button class="btn btn-success" type="button" @click="createProductFromDraft">Create and Select</button>
+          <button class="btn btn-success" type="submit" :disabled="creatingProduct">{{ creatingProduct ? "Creating..." : "Create and Select" }}</button>
           <button class="btn btn-secondary" type="button" @click="closeProductQuickCreate">Cancel</button>
         </div>
-      </div>
+      </form>
     </div>
 
-    <div v-if="applicatorQuickCreateOpen" class="modal-wrap">
-      <div class="quick-create-modal">
+    <div v-if="applicatorQuickCreateOpen" class="modal-wrap" @click.self="closeApplicatorQuickCreate">
+      <form ref="applicatorModalRef" class="quick-create-modal" role="dialog" aria-modal="true" aria-labelledby="applicator-create-title" tabindex="-1" @submit.prevent="createApplicatorFromDraft">
         <div class="modal-head">
-          <h3>Create Applicator</h3>
+          <h3 id="applicator-create-title">Create Applicator</h3>
           <button class="icon" type="button" @click="closeApplicatorQuickCreate">X</button>
         </div>
         <label class="field-inline">
@@ -388,17 +404,17 @@
         </label>
         <label class="field-inline">
           <span>Mobile</span>
-          <input v-model.trim="applicatorDraft.mobile" />
+          <input ref="applicatorMobileInput" v-model.trim="applicatorDraft.mobile" data-autofocus />
         </label>
         <label class="checkbox-inline">
           <input v-model="applicatorDraft.assign" type="checkbox" :disabled="!selectedParty || !selectedSiteId" />
           <span>Assign to selected Party and Site</span>
         </label>
         <div class="modal-actions">
-          <button class="btn btn-success" type="button" @click="createApplicatorFromDraft">Create and Select</button>
+          <button class="btn btn-success" type="submit" :disabled="creatingApplicator">{{ creatingApplicator ? "Creating..." : "Create and Select" }}</button>
           <button class="btn btn-secondary" type="button" @click="closeApplicatorQuickCreate">Cancel</button>
         </div>
-      </div>
+      </form>
     </div>
 
     <ConfirmDialog
@@ -440,7 +456,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import http from "@/api/http";
 import { getUsersApi } from "@/api/userApi";
@@ -451,6 +467,7 @@ import { notifyError, notifySuccess, notifyWarning, parseApiError } from "@/util
 import Loader from "@/components/Loader.vue";
 import CreatableAutocomplete from "@/components/common/CreatableAutocomplete.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import { useFocusTrap } from "@/composables/useFocusTrap";
 import {
   createApplicatorApi,
   createAssignmentApi,
@@ -493,7 +510,30 @@ const taxAmount = ref(0);
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
 const loading = ref(false);
+const saving = ref(false);
 const showCost = ref(false);
+const billNumberInput = ref(null);
+const invoiceDateInput = ref(null);
+const partyAutocomplete = ref(null);
+const siteAutocomplete = ref(null);
+const applicatorAutocomplete = ref(null);
+const productAutocomplete = ref(null);
+const partyModalRef = ref(null);
+const productModalRef = ref(null);
+const applicatorModalRef = ref(null);
+const partyNameInput = ref(null);
+const partyMobileInput = ref(null);
+const productNameInput = ref(null);
+const productUnitInput = ref(null);
+const applicatorMobileInput = ref(null);
+const quantityInputs = ref([]);
+const rateInputs = ref([]);
+const totalInputs = ref([]);
+const creatingParty = ref(false);
+const creatingProduct = ref(false);
+const creatingApplicator = ref(false);
+const billNumberStatus = reactive({ checking: false, checked: false, exists: false });
+let billNumberTimer = null;
 
 const returnBills = ref([]);
 const selectedReturnBillId = ref("");
@@ -576,6 +616,54 @@ const decimalStep = computed(() => (Number(currencyDecimals.value || 2) >= 3 ? "
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 
+const focusDate = () => invoiceDateInput.value?.focus?.();
+const focusBillNumber = () => billNumberInput.value?.focus?.();
+const focusParty = () => partyAutocomplete.value?.focus?.();
+const focusSite = () => siteAutocomplete.value?.focus?.();
+const focusApplicator = () => applicatorAutocomplete.value?.focus?.();
+const focusProduct = () => productAutocomplete.value?.focus?.();
+const setQuantityInput = (el, idx) => { if (el) quantityInputs.value[idx] = el; };
+const setRateInput = (el, idx) => { if (el) rateInputs.value[idx] = el; };
+const setTotalInput = (el, idx) => { if (el) totalInputs.value[idx] = el; };
+const focusRowQuantity = (idx) => nextTick(() => quantityInputs.value[idx]?.focus?.());
+const focusRowRate = (idx) => nextTick(() => rateInputs.value[idx]?.focus?.());
+const focusRowTotal = (idx) => nextTick(() => totalInputs.value[idx]?.focus?.());
+const handleRowTotalEnter = (idx) => {
+  if (idx === rows.value.length - 1 && rows.value[idx]?.productId) {
+    focusProduct();
+    return;
+  }
+  focusRowQuantity(idx + 1);
+};
+
+const resetBillNumberStatus = () => {
+  billNumberStatus.checking = false;
+  billNumberStatus.checked = false;
+  billNumberStatus.exists = false;
+};
+
+const checkBillNumber = async () => {
+  const value = billNumber.value.trim();
+  resetBillNumberStatus();
+  if (!value || transactionType.value !== "sale") return;
+  billNumberStatus.checking = true;
+  try {
+    const res = await http.get("/sales/check-number", {
+      params: {
+        billNumber: value,
+        ...(isEditMode.value ? { excludeId: route.params.id } : {}),
+      },
+      skipNotify: true,
+    });
+    billNumberStatus.exists = Boolean(res.data?.exists);
+    billNumberStatus.checked = true;
+  } catch (err) {
+    billNumberStatus.checked = false;
+  } finally {
+    billNumberStatus.checking = false;
+  }
+};
+
 const getProductCost = (productId) => {
   const product = products.value.find((entry) => String(entry._id) === String(productId));
   return Number(product?.lastPurchaseRate || product?.openingRate || 0);
@@ -650,6 +738,7 @@ const requestCreateParty = (name) => {
 };
 
 const closePartyQuickCreate = () => {
+  if (creatingParty.value) return;
   partyQuickCreateOpen.value = false;
 };
 
@@ -694,6 +783,7 @@ const openProductQuickCreate = (name) => {
 };
 
 const closeProductQuickCreate = () => {
+  if (creatingProduct.value) return;
   productQuickCreateOpen.value = false;
 };
 
@@ -705,21 +795,30 @@ const openApplicatorQuickCreate = (name) => {
 };
 
 const closeApplicatorQuickCreate = () => {
+  if (creatingApplicator.value) return;
   applicatorQuickCreateOpen.value = false;
 };
 
+useFocusTrap(partyQuickCreateOpen, partyModalRef, { onEscape: closePartyQuickCreate });
+useFocusTrap(productQuickCreateOpen, productModalRef, { onEscape: closeProductQuickCreate });
+useFocusTrap(applicatorQuickCreateOpen, applicatorModalRef, { onEscape: closeApplicatorQuickCreate });
+
 const createPartyFromDraft = async () => {
+  if (creatingParty.value) return;
   if (!partyDraft.name) {
     notifyWarning("Party name is required.");
+    partyNameInput.value?.focus?.();
     return;
   }
 
   const mobileDigits = String(partyDraft.mobile || "").replace(/\D/g, "");
   if (mobileDigits && (mobileDigits.length < 7 || mobileDigits.length > 15)) {
     notifyWarning("Please enter a valid mobile number.");
+    partyMobileInput.value?.focus?.();
     return;
   }
 
+  creatingParty.value = true;
   try {
     const role = transactionType.value === "purchase" ? "supplier" : "customer";
     const res = await http.post("/parties", {
@@ -730,16 +829,22 @@ const createPartyFromDraft = async () => {
     });
     parties.value = [res.data, ...parties.value.filter((party) => String(party._id) !== String(res.data._id))];
     selectParty(res.data);
-    closePartyQuickCreate();
+    partyQuickCreateOpen.value = false;
+    await nextTick();
+    focusSite();
     notifySuccess("Party created and selected successfully.");
   } catch (err) {
     notifyError(parseApiError(err) || "Unable to create Party.");
+  } finally {
+    creatingParty.value = false;
   }
 };
 
 const createProductFromDraft = async () => {
+  if (creatingProduct.value) return;
   if (!productDraft.name || !productDraft.sku) {
     notifyWarning("Product name and SKU are required.");
+    (productDraft.name ? productUnitInput.value : productNameInput.value)?.focus?.();
     return;
   }
   const openingStock = Number(productDraft.openingStock || 0);
@@ -748,6 +853,7 @@ const createProductFromDraft = async () => {
     notifyWarning("Please enter valid non-negative stock values.");
     return;
   }
+  creatingProduct.value = true;
   try {
     const res = await createProductApi({
       name: productDraft.name,
@@ -762,18 +868,24 @@ const createProductFromDraft = async () => {
     products.value = [product, ...products.value.filter((entry) => String(entry._id) !== String(product._id))];
     await addProduct(product);
     selectedProduct.value = null;
-    closeProductQuickCreate();
+    productQuickCreateOpen.value = false;
+    await nextTick();
+    focusRowQuantity(rows.value.length - 1);
     notifySuccess("Product created and selected successfully.");
   } catch (err) {
     notifyError(parseApiError(err));
+  } finally {
+    creatingProduct.value = false;
   }
 };
 
 const createApplicatorFromDraft = async () => {
+  if (creatingApplicator.value) return;
   if (!applicatorDraft.name) {
     notifyWarning("Applicator name is required.");
     return;
   }
+  creatingApplicator.value = true;
   try {
     const res = await createApplicatorApi({ name: applicatorDraft.name, mobile: applicatorDraft.mobile, status: "active" });
     const applicator = res.data;
@@ -792,10 +904,14 @@ const createApplicatorFromDraft = async () => {
       }
     }
 
-    closeApplicatorQuickCreate();
+    applicatorQuickCreateOpen.value = false;
+    await nextTick();
+    focusProduct();
     notifySuccess("Applicator created and selected successfully.");
   } catch (err) {
     notifyError(parseApiError(err));
+  } finally {
+    creatingApplicator.value = false;
   }
 };
 
@@ -815,6 +931,8 @@ const confirmQuickCreate = async () => {
       sites.value = [res.data, ...sites.value.filter((site) => String(site._id) !== String(res.data._id))];
       selectedSiteId.value = res.data._id;
       await loadApplicatorsForSite(selectedParty.value._id, selectedSiteId.value, false);
+      await nextTick();
+      focusApplicator();
       notifySuccess("Site created and selected successfully.");
     }
 
@@ -869,6 +987,7 @@ const addProduct = async (product) => {
     availableStock: stockRes.data.stock ?? 0,
   });
   rightOpen.value = false;
+  await focusRowQuantity(rows.value.length - 1);
 };
 
 const removeRow = (idx) => rows.value.splice(idx, 1);
@@ -1052,19 +1171,31 @@ const onTypeChange = async () => {
 const validateBillNumber = () => {
   if (!billNumber.value?.trim()) {
     notifyWarning("Please enter bill number");
+    focusBillNumber();
     return false;
   }
   return true;
 };
 
 const save = async () => {
+  if (saving.value) return;
   if (!rows.value.length) {
     notifyWarning("Please add at least one product");
+    focusProduct();
     return;
   }
 
-  if (!isAutoBillNumber.value && !validateBillNumber()) {
+  if (!validateBillNumber()) {
     return;
+  }
+
+  if (transactionType.value === "sale") {
+    await checkBillNumber();
+    if (billNumberStatus.exists) {
+      notifyWarning("Sales Bill Number already exists.");
+      focusBillNumber();
+      return;
+    }
   }
 
   if (isSaleOrPurchase.value && !selectedParty.value?._id) {
@@ -1085,6 +1216,7 @@ const save = async () => {
 
   if (transactionType.value === "sale") {
     const payload = {
+      invoiceNo: billNumber.value.trim(),
       partyId: selectedParty.value?._id || null,
       siteId: selectedSiteId.value || null,
       applicatorId: selectedApplicatorId.value || null,
@@ -1095,13 +1227,27 @@ const save = async () => {
       tax: gstEnabled.value ? Number(taxAmount.value || 0) : 0,
       paidAmount: paymentType.value === "credit" ? Number(paidAmount.value || 0) : Number(totalAmount.value || 0),
     };
-    if (isEditMode.value) {
-      await http.put(`/sales/${route.params.id}`, payload);
-    } else {
-      await http.post("/sales", payload);
+    saving.value = true;
+    try {
+      if (isEditMode.value) {
+        await http.put(`/sales/${route.params.id}`, payload);
+      } else {
+        await http.post("/sales", payload);
+      }
+      notifySuccess(isEditMode.value ? "Sale updated successfully." : "Sale saved successfully.");
+      router.push("/sales");
+    } catch (err) {
+      if (err.response?.data?.code === "DUPLICATE_BILL_NUMBER") {
+        billNumberStatus.exists = true;
+        billNumberStatus.checked = true;
+        notifyError(err.response.data.message || "Sales Bill Number already exists.");
+        focusBillNumber();
+      } else {
+        notifyError(parseApiError(err));
+      }
+    } finally {
+      saving.value = false;
     }
-    notifySuccess(isEditMode.value ? "Sale updated successfully." : "Sale saved successfully.");
-    router.push("/sales");
     return;
   }
 
@@ -1230,6 +1376,16 @@ watch(
       transactionType.value = String(type);
       onTypeChange();
     }
+  },
+);
+
+watch(
+  () => billNumber.value,
+  () => {
+    clearTimeout(billNumberTimer);
+    resetBillNumberStatus();
+    if (transactionType.value !== "sale" || !billNumber.value.trim()) return;
+    billNumberTimer = setTimeout(checkBillNumber, 400);
   },
 );
 
@@ -1392,6 +1548,29 @@ select {
   padding: 8px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
+}
+
+input.invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.field-help,
+.field-error,
+.field-ok {
+  font-size: 11px;
+}
+
+.field-help {
+  color: #64748b;
+}
+
+.field-error {
+  color: #dc2626;
+}
+
+.field-ok {
+  color: #15803d;
 }
 
 input[type="number"] {

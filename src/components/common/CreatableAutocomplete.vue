@@ -15,7 +15,7 @@
         @keydown.enter.prevent="chooseHighlighted"
         @keydown.esc="closeMenu"
       />
-      <button v-if="modelValue && !disabled" class="autocomplete__clear" type="button" title="Clear" @click="clearSelection">×</button>
+      <button v-if="modelValue && !disabled" class="autocomplete__clear" type="button" title="Clear" @click="clearSelection">Ã—</button>
     </div>
     <div v-if="isOpen" class="autocomplete__menu">
       <div v-if="loading" class="autocomplete__state">Loading...</div>
@@ -129,9 +129,14 @@ const clearSelection = async () => {
   await nextTick();
   emitSearch("");
 };
+const focus = () => {
+  rootEl.value?.querySelector?.(".autocomplete__input")?.focus?.();
+};
 const handleOutsideClick = (event) => {
   if (rootEl.value && !rootEl.value.contains(event.target)) closeMenu();
 };
+
+defineExpose({ focus, closeMenu });
 
 onMounted(() => document.addEventListener("mousedown", handleOutsideClick));
 onBeforeUnmount(() => {
