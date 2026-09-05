@@ -21,6 +21,10 @@
           <span>Date</span>
           <input ref="invoiceDateInput" type="date" v-model="invoiceDate" @keydown.enter.prevent="focusParty" />
         </label>
+        <label v-if="transactionType === 'sale'" class="field-inline compact checkbox-inline gst-toggle">
+          <input v-model="isGST" type="checkbox" />
+          <span>GST Invoice</span>
+        </label>
       </div>
     </div>
 
@@ -67,20 +71,6 @@
         @select="focusSite"
       />
       <CreatableAutocomplete
-        ref="productAutocomplete"
-        v-model="selectedProduct"
-        class="tool-autocomplete"
-        label="Product"
-        :options="filteredProducts"
-        :get-option-label="(product) => product.name"
-        :get-option-meta="(product) => product.sku || product.unitName || ''"
-        placeholder="Search product"
-        allow-create
-        @search="searchProducts"
-        @create="openProductQuickCreate"
-        @select="handleProductSelect"
-      />
-      <CreatableAutocomplete
         ref="siteAutocomplete"
         v-model="selectedSite"
         class="tool-autocomplete"
@@ -88,7 +78,7 @@
         :disabled="!selectedParty"
         :options="sites"
         :get-option-label="(site) => site.name"
-        :get-option-meta="(site) => site.address || ''"
+        :get-option-meta="(site) => `${site.isAssigned ? 'Assigned' : 'Other'}${site.address ? ` - ${site.address}` : ''}`"
         placeholder="Select site"
         allow-create
         @create="requestCreateSite"
@@ -102,11 +92,25 @@
         :disabled="!selectedSiteId"
         :options="assignedApplicatorOptions"
         :get-option-label="(applicator) => applicator.name"
-        :get-option-meta="(applicator) => applicator.mobile || ''"
+        :get-option-meta="(applicator) => `${applicator.isAssigned ? 'Assigned' : 'Other'}${applicator.mobile ? ` - ${applicator.mobile}` : ''}`"
         placeholder="Select applicator"
         allow-create
         @create="openApplicatorQuickCreate"
         @select="focusProduct"
+      />
+      <CreatableAutocomplete
+        ref="productAutocomplete"
+        v-model="selectedProduct"
+        class="tool-autocomplete"
+        label="Product"
+        :options="filteredProducts"
+        :get-option-label="(product) => product.name"
+        :get-option-meta="(product) => product.sku || product.unitName || ''"
+        placeholder="Search product"
+        allow-create
+        @search="searchProducts"
+        @create="openProductQuickCreate"
+        @select="handleProductSelect"
       />
       <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
         No applicator assigned for this site
@@ -193,6 +197,29 @@
         </tbody>
       </table>
     </div>
+
+    <section v-if="isSaleOrPurchase" class="other-charges">
+      <div class="section-head">
+        <h3>Other Charges</h3>
+        <button class="btn btn-secondary" type="button" @click="addOtherCharge">+ Add Charge</button>
+      </div>
+      <div v-if="otherCharges.length" class="charges-grid">
+        <div class="charge-row charge-head">
+          <span>Charge</span>
+          <span>Amount</span>
+          <span></span>
+        </div>
+        <div v-for="(charge, idx) in otherCharges" :key="`charge-${idx}`" class="charge-row">
+          <input v-model.trim="charge.name" list="charge-options" placeholder="Freight" />
+          <input type="number" min="0" :step="decimalStep" v-model.number="charge.amount" />
+          <button class="btn btn-danger" type="button" @click="removeOtherCharge(idx)">Remove</button>
+        </div>
+      </div>
+      <p v-else class="empty charges-empty">No other charges added</p>
+      <datalist id="charge-options">
+        <option v-for="name in chargeSuggestions" :key="name" :value="name" />
+      </datalist>
+    </section>
 
     <div v-if="isReturn" class="replacement">
       <label class="replacement-toggle">
@@ -307,11 +334,12 @@
     </div>
 
     <div class="foot">
-      <span v-if="isSaleOrPurchase">Subtotal: {{ money(subtotalAmount) }}</span>
+      <span v-if="isSaleOrPurchase">Product Subtotal: {{ money(subtotalAmount) }}</span>
       <label v-if="isSaleOrPurchase && gstEnabled" class="field-inline compact tax-field">
         <span>GST / Tax</span>
         <input type="number" min="0" :step="decimalStep" v-model.number="taxAmount" />
       </label>
+      <span v-if="isSaleOrPurchase">Other Charges: {{ money(otherChargesTotal) }}</span>
       <label v-if="isSaleOrPurchase && paymentType === 'credit'" class="field-inline compact tax-field">
         <span>Paid Amount</span>
         <input type="number" min="0" :step="decimalStep" v-model.number="paidAmount" />
@@ -509,6 +537,8 @@ const paidAmount = ref(0);
 const taxAmount = ref(0);
 const invoiceDate = ref(new Date().toISOString().slice(0, 10));
 const billNumber = ref("");
+const isGST = ref(false);
+const otherCharges = ref([]);
 const loading = ref(false);
 const saving = ref(false);
 const showCost = ref(false);
@@ -553,6 +583,7 @@ const productDraft = reactive({ name: "", sku: "", unitId: "", price: 0, opening
 const applicatorQuickCreateOpen = ref(false);
 const applicatorDraft = reactive({ name: "", mobile: "", assign: true });
 const confirmState = reactive({ open: false, loading: false, type: "", name: "", title: "", message: "", context: null });
+const chargeSuggestions = ["Freight", "Tea", "Toll", "Transport", "Loading", "Unloading", "Packing", "Other"];
 
 const leftOpen = ref(false);
 const rightOpen = ref(false);
@@ -579,6 +610,7 @@ const assignedApplicatorOptions = computed(() =>
     _id: entry.applicatorId?._id || entry.applicatorId,
     name: entry.applicatorName || entry.applicatorId?.name || "Applicator",
     mobile: entry.mobile || entry.applicatorId?.mobile || "",
+    isAssigned: Boolean(entry.isAssigned),
   })),
 );
 
@@ -600,8 +632,23 @@ const filteredProducts = computed(() => {
 const subtotalAmount = computed(() =>
   roundCurrency(rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0)),
 );
+const normalizedOtherCharges = computed(() =>
+  otherCharges.value
+    .map((charge) => ({
+      name: String(charge.name || "").trim(),
+      amount: roundCurrency(Number(charge.amount || 0)),
+    }))
+    .filter((charge) => charge.name && charge.amount > 0),
+);
+const otherChargesTotal = computed(() =>
+  roundCurrency(normalizedOtherCharges.value.reduce((sum, charge) => sum + Number(charge.amount || 0), 0)),
+);
 const totalAmount = computed(() =>
-  roundCurrency(subtotalAmount.value + (isSaleOrPurchase.value && gstEnabled.value ? Number(taxAmount.value || 0) : 0)),
+  roundCurrency(
+    subtotalAmount.value +
+      (isSaleOrPurchase.value && gstEnabled.value ? Number(taxAmount.value || 0) : 0) +
+      (isSaleOrPurchase.value ? otherChargesTotal.value : 0),
+  ),
 );
 const replacementTotal = computed(() =>
   roundCurrency(
@@ -891,7 +938,7 @@ const createApplicatorFromDraft = async () => {
     const applicator = res.data;
     const option = { _id: applicator._id, name: applicator.name, mobile: applicator.mobile || "" };
     assignedApplicators.value = [
-      { applicatorId: option._id, applicatorName: option.name, mobile: option.mobile },
+      { applicatorId: option._id, applicatorName: option.name, mobile: option.mobile, isAssigned: true },
       ...assignedApplicators.value.filter((entry) => String(entry.applicatorId?._id || entry.applicatorId) !== String(option._id)),
     ];
     selectedApplicatorId.value = option._id;
@@ -991,6 +1038,10 @@ const addProduct = async (product) => {
 };
 
 const removeRow = (idx) => rows.value.splice(idx, 1);
+const addOtherCharge = () => {
+  otherCharges.value.push({ name: "Freight", amount: 0 });
+};
+const removeOtherCharge = (idx) => otherCharges.value.splice(idx, 1);
 const addReplacementRow = () =>
   replacementRows.value.push({
     productId: "",
@@ -1041,8 +1092,8 @@ const loadNextBillNo = async () => {
   }
 
   if (transactionType.value === "sale") {
-    const res = await http.get("/sales");
-    billNumber.value = `SAL-${(res.data || []).length + 1}`;
+    const res = await http.get("/sales/next-number");
+    billNumber.value = res.data?.invoiceNo || "";
     return;
   }
 
@@ -1067,6 +1118,9 @@ const loadReturnBillItems = async () => {
   });
 
   selectedParty.value = res.data.bill?.partyId || null;
+  selectedSiteId.value = res.data.bill?.siteId?._id || res.data.bill?.siteId || "";
+  selectedApplicatorId.value = res.data.bill?.applicatorId?._id || res.data.bill?.applicatorId || "";
+  isGST.value = Boolean(res.data.bill?.isGST);
   invoiceDate.value = new Date().toISOString().slice(0, 10);
 
   rows.value = (res.data.items || [])
@@ -1091,7 +1145,7 @@ const loadSitesForParty = async (partyId, resetSelection = true) => {
     selectedApplicatorId.value = "";
   }
   if (!partyId) return;
-  sites.value = (await listSitesApi({ partyId })).data || [];
+  sites.value = (await listSitesApi({ partyId, includeOthers: true, limit: 100 })).data || [];
 };
 
 const loadApplicatorsForSite = async (partyId, siteId, resetSelection = true) => {
@@ -1117,6 +1171,13 @@ const loadEditInvoice = async () => {
   paidAmount.value = Number(data.paidAmount || 0);
   selectedSiteId.value = data.siteId?._id || data.siteId || "";
   selectedApplicatorId.value = data.applicatorId?._id || data.applicatorId || "";
+  isGST.value = Boolean(data.isGST);
+  otherCharges.value = Array.isArray(data.otherCharges)
+    ? data.otherCharges.map((charge) => ({
+        name: charge.name || "",
+        amount: Number(charge.amount || 0),
+      }))
+    : [];
   taxAmount.value = gstEnabled.value ? Number(data.tax || 0) : 0;
   invoiceDate.value = data.invoiceDate ? new Date(data.invoiceDate).toISOString().slice(0, 10) : invoiceDate.value;
   billNumber.value = data.invoiceNo || "";
@@ -1157,6 +1218,8 @@ const onTypeChange = async () => {
   selectedApplicatorId.value = "";
   paidAmount.value = 0;
   taxAmount.value = 0;
+  isGST.value = false;
+  otherCharges.value = [];
   selectedReturnBillId.value = "";
   createReplacement.value = false;
   replacementRows.value = [];
@@ -1217,6 +1280,7 @@ const save = async () => {
   if (transactionType.value === "sale") {
     const payload = {
       invoiceNo: billNumber.value.trim(),
+      isGST: isGST.value,
       partyId: selectedParty.value?._id || null,
       siteId: selectedSiteId.value || null,
       applicatorId: selectedApplicatorId.value || null,
@@ -1225,8 +1289,11 @@ const save = async () => {
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
       tax: gstEnabled.value ? Number(taxAmount.value || 0) : 0,
+      otherCharges: normalizedOtherCharges.value,
       paidAmount: paymentType.value === "credit" ? Number(paidAmount.value || 0) : Number(totalAmount.value || 0),
     };
+    const shouldNotifySiteAssigned = selectedSite.value && !selectedSite.value.isAssigned;
+    const shouldNotifyApplicatorAssigned = selectedApplicator.value && !selectedApplicator.value.isAssigned;
     saving.value = true;
     try {
       if (isEditMode.value) {
@@ -1235,6 +1302,8 @@ const save = async () => {
         await http.post("/sales", payload);
       }
       notifySuccess(isEditMode.value ? "Sale updated successfully." : "Sale saved successfully.");
+      if (shouldNotifySiteAssigned) notifySuccess("Site assigned to Customer.");
+      if (shouldNotifyApplicatorAssigned) notifySuccess("Applicator assigned to Customer.");
       router.push("/sales");
     } catch (err) {
       if (err.response?.data?.code === "DUPLICATE_BILL_NUMBER") {
@@ -1262,6 +1331,7 @@ const save = async () => {
       invoiceDate: invoiceDate.value,
       items: rows.value.map((r) => ({ productId: r.productId, quantity: r.quantity, rate: roundCurrency(r.rate) })),
       tax: gstEnabled.value ? Number(taxAmount.value || 0) : 0,
+      otherCharges: normalizedOtherCharges.value,
       paidAmount: paymentType.value === "credit" ? Number(paidAmount.value || 0) : Number(totalAmount.value || 0),
     };
     if (isEditMode.value) {
@@ -1351,8 +1421,14 @@ const save = async () => {
 onMounted(async () => {
   loading.value = true;
   await ensureCompanySettingsLoaded();
-  const [productRes, partyRes, bankRes, unitRes] = await Promise.all([http.get("/products"), getUsersApi(), http.get("/bank-accounts"), listUnitsApi({ status: "active" })]);
-  products.value = productRes.data || [];
+  const initialRole = transactionType.value === "purchase" ? "supplier" : "customer";
+  const [productRes, partyRes, bankRes, unitRes] = await Promise.all([
+    http.get("/products", { params: { status: "active", limit: 50 }, skipNotify: true }),
+    getUsersApi({ role: initialRole, limit: 50 }),
+    http.get("/bank-accounts"),
+    listUnitsApi({ status: "active" }),
+  ]);
+  products.value = productRes.data?.data || productRes.data || [];
   parties.value = partyRes.data || [];
   bankAccounts.value = bankRes.data || [];
   units.value = unitRes.data || [];
@@ -1594,6 +1670,54 @@ input[type="number"] {
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gst-toggle {
+  align-self: center;
+}
+
+.other-charges {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fbfdff;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.charges-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.charge-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.charge-head {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.charges-empty {
+  margin: 0;
 }
 
 .replacement {
@@ -1790,6 +1914,10 @@ input[type="number"] {
 @media (max-width: 720px) {
   input[type="number"] {
     width: 90px;
+  }
+
+  .charge-row {
+    grid-template-columns: 1fr;
   }
 
   .panel {

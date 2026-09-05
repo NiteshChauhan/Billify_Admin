@@ -27,6 +27,7 @@ const routes = [
       { path: "", name: "dashboard", component: Dashboard },
 
       { path: "sales", name: "sales-list", component: () => import("@/views/sales/SalesList.vue") },
+      { path: "gst-invoices", name: "gst-invoices", component: () => import("@/views/sales/SalesList.vue") },
       { path: "sales/create", component: () => import("@/views/sales/SalesCreate.vue") },
       { path: "sales/edit/:id", component: () => import("@/views/sales/SalesEdit.vue") },
       { path: "sales/replacement-bills", name: "replacement-bills", component: () => import("@/views/sales/ReplacementBills.vue") },

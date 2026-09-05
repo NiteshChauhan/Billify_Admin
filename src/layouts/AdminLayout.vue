@@ -112,6 +112,7 @@ const companyLoading = ref(false);
 const navItems = [
   { label: "Dashboard", path: "/", icon: "M3 12l9-9 9 9M5 10v10h14V10" },
   { label: "Sales", path: "/sales", icon: "M4 7h16M4 12h10M4 17h8" },
+  { label: "GST Bills", path: "/gst-invoices", icon: "M20.6 13.6 13.7 20.5a2 2 0 0 1-2.8 0L3 12.6V3h9.6l8 8a2 2 0 0 1 0 2.8ZM7.5 7.5h.01" },
   {
     label: "Purchase",
     path: "/purchase",

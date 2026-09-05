@@ -5,6 +5,7 @@
     <div class="info">
       <div><strong>Customer:</strong> {{ data.partyId?.name || data.customerId?.name || data.vendorId?.name }}</div>
       <div><strong>Date:</strong> {{ formatDate(data.invoiceDate) }}</div>
+      <div><strong>GST:</strong> {{ data.isGST ? "GST Bill" : "Non-GST" }}</div>
       <div><strong>Status:</strong> {{ data.status }}</div>
     </div>
 
@@ -28,8 +29,12 @@
     </table>
 
     <div class="totals">
-      <div>Subtotal: {{ money(data.subtotal) }}</div>
+      <div>Product Subtotal: {{ money(data.subtotal) }}</div>
       <div v-if="gstEnabled">Tax: {{ money(data.tax) }}</div>
+      <div v-for="charge in data.otherCharges || []" :key="`${charge.name}-${charge.amount}`">
+        {{ charge.name }}: {{ money(charge.amount) }}
+      </div>
+      <div>Other Charges: {{ money(data.otherChargesTotal || 0) }}</div>
       <div><strong>Total: {{ money(data.totalAmount) }}</strong></div>
       <div>Paid: {{ money(data.paidAmount) }}</div>
       <div><strong>Balance: {{ money(balance) }}</strong></div>
@@ -43,6 +48,7 @@
         </option>
       </select>
       <button class="btn blue" @click="openPDF">Download PDF</button>
+      <button class="btn teal" @click="toggleGst">{{ data.isGST ? "Remove GST" : "Add GST" }}</button>
       <button class="btn orange" @click="createSaleReturn">Return Items</button>
       <router-link to="/sales" class="btn gray">Back</router-link>
     </div>
@@ -120,7 +126,7 @@ import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
 import { useCompanySettings } from "@/composables/useCompanySettings";
-import { notifyInfo, notifySuccess } from "@/utils/notifications";
+import { notifyError, notifyInfo, notifySuccess, parseApiError } from "@/utils/notifications";
 import { getPdfLanguage, pdfLanguageOptions, setPdfLanguage } from "@/utils/pdfLanguage";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
 
@@ -164,6 +170,17 @@ const openPDF = () => {
 
 const savePdfLanguage = () => setPdfLanguage(pdfLanguage.value);
 
+const toggleGst = async () => {
+  try {
+    const nextStatus = !data.value.isGST;
+    const res = await http.patch(`/sales/${route.params.id}/gst-status`, { isGST: nextStatus });
+    data.value = res.data?.invoice || { ...data.value, isGST: nextStatus };
+    notifySuccess(res.data?.message || (nextStatus ? "Invoice added to GST." : "Invoice removed from GST."));
+  } catch (err) {
+    notifyError(parseApiError(err));
+  }
+};
+
 const createSaleReturn = async () => {
   router.push(`/entry?type=sale_return&billId=${data.value._id}`);
 };
@@ -193,6 +210,7 @@ th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: right; }
 .btn { padding: 8px 12px; text-decoration: none; color: white; border-radius: 5px; border: none; }
 .green { background: #16a34a; }
 .blue { background: #2563eb; }
+.teal { background: #0f766e; }
 .orange { background: #f59e0b; }
 .gray { background: #6b7280; }
 .payments { margin-top: 30px; }

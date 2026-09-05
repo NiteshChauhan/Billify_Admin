@@ -2,7 +2,7 @@
   <div class="card">
     <div class="head">
       <div>
-        <h2>Sales List</h2>
+        <h2>{{ gstOnly ? "GST Bills" : "Sales List" }}</h2>
         <p>Track customer sales and outstanding.</p>
       </div>
       <router-link class="btn" to="/entry?type=sale">Add Bill</router-link>
@@ -25,6 +25,13 @@
           <option value="DUE">Due</option>
           <option value="PARTIAL">Partial</option>
           <option value="PAID">Paid</option>
+        </select>
+      </label>
+      <label v-if="!gstOnly">GST
+        <select v-model="gstFilter">
+          <option value="">All</option>
+          <option value="true">GST Bills</option>
+          <option value="false">Non-GST</option>
         </select>
       </label>
       <label>Applicator
@@ -52,6 +59,7 @@
             <th>Applicator</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
+            <th>GST</th>
             <th>Record</th>
             <th>Status</th>
             <th>How Many Days</th>
@@ -68,19 +76,21 @@
             <td>{{ inv.applicatorName || 'Unassigned' }}</td>
             <td>{{ money(inv.totalAmount) }}</td>
             <td>{{ money(inv.paidAmount) }}</td>
+            <td><span :class="['pill', inv.isGST ? 'GST' : 'NON_GST']">{{ inv.isGST ? 'GST' : 'Non-GST' }}</span></td>
             <td><span :class="['pill', inv.isDeleted ? 'DELETED' : 'ACTIVE']">{{ inv.isDeleted ? 'Deleted' : 'Active' }}</span></td>
             <td><span :class="['pill', inv.status]">{{ statusLabel(inv.status) }}</span></td>
             <td>{{ pendingDays(inv) }}</td>
             <td class="actions">
               <ActionIconButton v-if="!inv.isDeleted" icon="edit" :to="`/sales/edit/${inv._id}`" title="Edit sale" variant="edit" />
               <ActionIconButton icon="view" :to="`/sales/${inv._id}`" title="View sale" variant="view" />
+              <ActionIconButton v-if="!inv.isDeleted" icon="tag" :title="inv.isGST ? 'Remove from GST bills' : 'Add to GST bills'" variant="print" @click="toggleGst(inv)" />
               <ActionIconButton v-if="!inv.isDeleted" icon="print" title="Print sale" variant="print" @click="printBill(inv._id)" />
               <ActionIconButton v-if="!inv.isDeleted" icon="delete" title="Delete sale" variant="danger" @click="deleteInvoice(inv)" />
               <ActionIconButton v-else icon="power" title="Restore sale" variant="success" @click="restoreInvoice(inv)" />
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="12" class="empty">No sales found</td>
+            <td colspan="13" class="empty">No sales found</td>
           </tr>
         </tbody>
       </table>
@@ -95,7 +105,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import http from "@/api/http";
 import { getFinancialYearParams } from "@/utils/financialYear";
 import { useCurrency } from "@/composables/useCurrency";
@@ -104,18 +115,21 @@ import { getPdfLanguage } from "@/utils/pdfLanguage";
 import { listApplicatorsApi } from "@/api/applicatorApi";
 import ActionIconButton from "@/components/common/ActionIconButton.vue";
 import ContactActions from "@/components/common/ContactActions.vue";
-import { notifyInfo, notifySuccess } from "@/utils/notifications";
+import { notifyError, notifyInfo, notifySuccess, parseApiError } from "@/utils/notifications";
 
+const route = useRoute();
 const rows = ref([]);
 const fromDate = ref("");
 const toDate = ref("");
 const statusFilter = ref("active");
 const paymentStatus = ref("");
+const gstFilter = ref("");
 const search = ref("");
 const applicatorId = ref("");
 const applicators = ref([]);
 const loading = ref(false);
 const { formatCurrency: money } = useCurrency();
+const gstOnly = computed(() => route.path === "/gst-invoices");
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
 const statusLabel = (s) => (s === "DUE" ? "Unpaid" : s === "PARTIAL" ? "Partial" : "Paid");
@@ -132,12 +146,25 @@ const load = async () => {
   if (fromDate.value) params.from = fromDate.value;
   if (toDate.value) params.to = toDate.value;
   params.status = statusFilter.value;
+  if (gstOnly.value) params.isGST = true;
+  else if (gstFilter.value) params.isGST = gstFilter.value;
   if (applicatorId.value) params.applicatorId = applicatorId.value;
   if (paymentStatus.value) params.paymentStatus = paymentStatus.value;
   if (search.value) params.search = search.value;
   const res = await http.get("/sales", { params });
   rows.value = res.data || [];
   loading.value = false;
+};
+
+const toggleGst = async (invoice) => {
+  try {
+    const nextStatus = !invoice.isGST;
+    const res = await http.patch(`/sales/${invoice._id}/gst-status`, { isGST: nextStatus });
+    notifySuccess(res.data?.message || (nextStatus ? "Invoice added to GST." : "Invoice removed from GST."));
+    await load();
+  } catch (err) {
+    notifyError(parseApiError(err));
+  }
 };
 
 const deleteInvoice = async (invoice) => {
@@ -175,6 +202,13 @@ onMounted(async () => {
   applicators.value = (await listApplicatorsApi({ status: "active", limit: 100 })).data?.data || [];
   await load();
 });
+
+watch(
+  () => route.path,
+  () => {
+    load();
+  },
+);
 </script>
 
 <style scoped>
@@ -196,6 +230,8 @@ th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; }
 .DUE { background: #fee2e2; color: #991b1b; }
 .ACTIVE { background: #e0f2fe; color: #075985; }
 .DELETED { background: #e5e7eb; color: #374151; }
+.GST { background: #dcfce7; color: #166534; }
+.NON_GST { background: #f1f5f9; color: #475569; }
 .actions { display: flex; gap: 8px; align-items: center; }
 .empty { text-align: center; color: #64748b; }
 .summary { margin-top: 12px; display: grid; gap: 6px; justify-content: end; text-align: right; }

@@ -15,7 +15,7 @@
         @keydown.enter.prevent="chooseHighlighted"
         @keydown.esc="closeMenu"
       />
-      <button v-if="modelValue && !disabled" class="autocomplete__clear" type="button" title="Clear" @click="clearSelection">×</button>
+      <button v-if="modelValue && !disabled" class="autocomplete__clear" type="button" title="Clear" @click="clearSelection">x</button>
     </div>
     <div v-if="isOpen" class="autocomplete__menu">
       <div v-if="loading" class="autocomplete__state">Loading...</div>
