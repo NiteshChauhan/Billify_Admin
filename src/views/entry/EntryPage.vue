@@ -1389,8 +1389,32 @@ const save = async () => {
   }
 
   if (transactionType.value === "sale_return") {
-    const res = await http.post("/returns/sale", {
-      returnNo: billNumber.value,
+    saving.value = true;
+    try {
+      const res = await http.post("/returns/sale", {
+        returnNo: billNumber.value.trim(),
+        billId: selectedReturnBillId.value,
+        returnDate: invoiceDate.value,
+        items: validRows,
+        replacement: replacementPayload,
+      });
+      if (res.data?.replacementError) {
+        notifyWarning(`Return saved, but replacement failed: ${res.data.replacementError}`);
+      }
+      notifySuccess("Sale return saved successfully.");
+      router.push("/sale-return");
+    } catch (err) {
+      notifyError(parseApiError(err) || "Failed to save sale return.");
+    } finally {
+      saving.value = false;
+    }
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const res = await http.post("/returns/purchase", {
+      returnNo: billNumber.value.trim(),
       billId: selectedReturnBillId.value,
       returnDate: invoiceDate.value,
       items: validRows,
@@ -1399,23 +1423,13 @@ const save = async () => {
     if (res.data?.replacementError) {
       notifyWarning(`Return saved, but replacement failed: ${res.data.replacementError}`);
     }
-    notifySuccess("Sale return saved successfully.");
-    router.push("/sale-return");
-    return;
+    notifySuccess("Purchase return saved successfully.");
+    router.push("/purchase-return");
+  } catch (err) {
+    notifyError(parseApiError(err) || "Failed to save purchase return.");
+  } finally {
+    saving.value = false;
   }
-
-  const res = await http.post("/returns/purchase", {
-    returnNo: billNumber.value.trim(),
-    billId: selectedReturnBillId.value,
-    returnDate: invoiceDate.value,
-    items: validRows,
-    replacement: replacementPayload,
-  });
-  if (res.data?.replacementError) {
-    notifyWarning(`Return saved, but replacement failed: ${res.data.replacementError}`);
-  }
-  notifySuccess("Purchase return saved successfully.");
-  router.push("/purchase-return");
 };
 
 onMounted(async () => {

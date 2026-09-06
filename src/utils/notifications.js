@@ -26,6 +26,10 @@ export const parseApiError = (error) => {
     const available = Number(data.availableStock ?? 0);
     return `Insufficient stock for ${name}. Available stock: ${available}.`;
   }
+  const message = data?.message || data?.error || error?.message || "";
+  if (/\bReferenceError\b/i.test(message) || /\bis not defined\b/i.test(message)) {
+    return "Something went wrong. Please try again.";
+  }
   if (data?.message) return data.message;
   if (data?.error) return data.error;
   if (error?.message) return error.message;
