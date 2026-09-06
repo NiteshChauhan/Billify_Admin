@@ -18,24 +18,27 @@
       <button v-if="modelValue && !disabled" class="autocomplete__clear" type="button" title="Clear" @click="clearSelection">x</button>
     </div>
     <div v-if="isOpen" class="autocomplete__menu">
-      <div v-if="loading" class="autocomplete__state">Loading...</div>
-      <button
-        v-for="(option, index) in options"
-        :key="optionKey(option, index)"
-        :class="['autocomplete__option', { active: index === highlightedIndex }]"
-        type="button"
-        @mousedown.prevent="selectOption(option)"
-      >
-        <strong>{{ optionLabel(option) }}</strong>
-        <span v-if="optionMeta(option)">{{ optionMeta(option) }}</span>
-      </button>
+      <div v-if="loading" class="autocomplete__state">Searching...</div>
+      <template v-for="group in optionGroups" :key="group.label">
+        <div v-if="group.label" class="autocomplete__group">{{ group.label }}</div>
+        <button
+          v-for="option in group.options"
+          :key="optionKey(option.option, option.index)"
+          :class="['autocomplete__option', { active: option.index === highlightedIndex }]"
+          type="button"
+          @mousedown.prevent.stop="selectOption(option.option)"
+        >
+          <strong>{{ optionLabel(option.option) }}</strong>
+          <span v-if="optionMeta(option.option)">{{ optionMeta(option.option) }}</span>
+        </button>
+      </template>
       <button
         v-if="canCreate"
         :class="['autocomplete__option', 'create', { active: highlightedIndex === options.length }]"
         type="button"
-        @mousedown.prevent="createOption"
+        @mousedown.prevent.stop="createOption"
       >
-        {{ createText }}
+        + {{ createText }}
       </button>
       <div v-if="!loading && !options.length && !canCreate" class="autocomplete__state">No matches</div>
     </div>
@@ -44,6 +47,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { normalizeName } from "@/utils/normalizeName";
 
 const props = defineProps({
   allowCreate: { type: Boolean, default: false },
@@ -57,6 +61,7 @@ const props = defineProps({
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: "Search..." },
   required: { type: Boolean, default: false },
+  showAssignedGroups: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(["update:modelValue", "search", "create", "select"]);
@@ -70,11 +75,23 @@ const optionLabel = (option) => String(props.getOptionLabel(option) || "");
 const optionMeta = (option) => String(props.getOptionMeta(option) || "");
 const displayValue = computed(() => (props.modelValue ? optionLabel(props.modelValue) : inputValue.value));
 const canCreate = computed(() => {
-  const value = inputValue.value.trim();
+  const value = normalizeName(inputValue.value);
   if (!props.allowCreate || !value) return false;
-  return !props.options.some((option) => optionLabel(option).toLowerCase() === value.toLowerCase());
+  return !props.options.some((option) => normalizeName(optionLabel(option)) === value);
 });
 const createText = computed(() => props.createLabel?.(inputValue.value.trim()) || `Create "${inputValue.value.trim()}"`);
+const indexedOptions = computed(() => props.options.map((option, index) => ({ option, index })));
+const optionGroups = computed(() => {
+  if (!props.showAssignedGroups || !props.options.some((option) => "isAssigned" in Object(option))) {
+    return [{ label: "", options: indexedOptions.value }];
+  }
+  const assigned = indexedOptions.value.filter(({ option }) => option?.isAssigned);
+  const other = indexedOptions.value.filter(({ option }) => !option?.isAssigned);
+  return [
+    assigned.length ? { label: "Assigned", options: assigned } : null,
+    other.length ? { label: "Other", options: other } : null,
+  ].filter(Boolean);
+});
 
 watch(() => props.modelValue, (value) => {
   inputValue.value = value ? optionLabel(value) : "";
@@ -111,7 +128,9 @@ const createOption = () => {
   emit("create", value);
   closeMenu();
 };
-const chooseHighlighted = () => {
+const chooseHighlighted = (event) => {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
   if (highlightedIndex.value < props.options.length) {
     selectOption(props.options[highlightedIndex.value]);
     return;
@@ -159,5 +178,6 @@ onBeforeUnmount(() => {
 .autocomplete__option span, .autocomplete__state { color: #64748b; font-size: 12px; }
 .autocomplete__option.active, .autocomplete__option:hover { background: #eff6ff; }
 .autocomplete__option.create { color: #0f766e; font-weight: 700; }
+.autocomplete__group { color: #64748b; font-size: 11px; font-weight: 800; padding: 7px 10px 4px; text-transform: uppercase; }
 .autocomplete__state { padding: 10px; }
 </style>

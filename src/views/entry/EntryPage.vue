@@ -2,7 +2,13 @@
   <div class="entry-page">
     <div class="page-head">
       <h2>Entry</h2>
-      <div class="head-right">
+    </div>
+
+    <section class="invoice-info">
+      <div class="section-head">
+        <h3>Invoice Information</h3>
+      </div>
+      <div class="invoice-info__grid">
         <label class="field-inline">
           <span>Bill Number</span>
           <input
@@ -18,15 +24,22 @@
           <small v-else-if="billNumberStatus.checked && billNumber" class="field-ok">Bill Number available</small>
         </label>
         <label class="field-inline">
-          <span>Date</span>
+          <span>Invoice Date</span>
           <input ref="invoiceDateInput" type="date" v-model="invoiceDate" @keydown.enter.prevent="focusParty" />
         </label>
-        <label v-if="transactionType === 'sale'" class="field-inline compact checkbox-inline gst-toggle">
-          <input v-model="isGST" type="checkbox" />
-          <span>GST Invoice</span>
-        </label>
+        <div class="invoice-options" aria-label="Invoice Options">
+          <span class="option-title">Invoice Options</span>
+          <label v-if="transactionType === 'sale'" class="checkbox-inline option-check">
+            <input v-model="isGST" type="checkbox" />
+            <span>GST Invoice</span>
+          </label>
+          <label class="checkbox-inline option-check">
+            <input v-model="showCost" type="checkbox" />
+            <span>Show Cost / Purchase Price</span>
+          </label>
+        </div>
       </div>
-    </div>
+    </section>
 
     <Loader v-if="loading" />
 
@@ -77,10 +90,12 @@
         label="Site"
         :disabled="!selectedParty"
         :options="sites"
+        :loading="siteSearching"
         :get-option-label="(site) => site.name"
-        :get-option-meta="(site) => `${site.isAssigned ? 'Assigned' : 'Other'}${site.address ? ` - ${site.address}` : ''}`"
+        :get-option-meta="(site) => site.address || ''"
         placeholder="Select site"
         allow-create
+        @search="searchSites"
         @create="requestCreateSite"
         @select="focusApplicator"
       />
@@ -91,10 +106,12 @@
         label="Applicator"
         :disabled="!selectedSiteId"
         :options="assignedApplicatorOptions"
+        :loading="applicatorSearching"
         :get-option-label="(applicator) => applicator.name"
-        :get-option-meta="(applicator) => `${applicator.isAssigned ? 'Assigned' : 'Other'}${applicator.mobile ? ` - ${applicator.mobile}` : ''}`"
+        :get-option-meta="(applicator) => applicator.mobile || ''"
         placeholder="Select applicator"
         allow-create
+        @search="searchApplicators"
         @create="openApplicatorQuickCreate"
         @select="focusProduct"
       />
@@ -104,6 +121,7 @@
         class="tool-autocomplete"
         label="Product"
         :options="filteredProducts"
+        :loading="productSearching"
         :get-option-label="(product) => product.name"
         :get-option-meta="(product) => product.sku || product.unitName || ''"
         placeholder="Search product"
@@ -115,10 +133,6 @@
       <span v-if="selectedParty && selectedSiteId && !assignedApplicators.length" class="muted-note">
         No applicator assigned for this site
       </span>
-      <label class="field-inline compact checkbox-inline">
-        <input v-model="showCost" type="checkbox" />
-        <span>Show Cost / Purchase Price</span>
-      </label>
       <div class="selected">Party: {{ selectedParty?.name || 'Not selected' }}</div>
     </div>
 
@@ -129,10 +143,6 @@
           {{ bill.invoiceNo }} - {{ formatDate(bill.invoiceDate) }} - {{ bill.partyId?.name }}
         </option>
       </select>
-      <label class="field-inline compact checkbox-inline">
-        <input v-model="showCost" type="checkbox" />
-        <span>Show Cost / Purchase Price</span>
-      </label>
     </div>
 
     <div class="table-wrap">
@@ -562,8 +572,19 @@ const totalInputs = ref([]);
 const creatingParty = ref(false);
 const creatingProduct = ref(false);
 const creatingApplicator = ref(false);
+const siteSearching = ref(false);
+const applicatorSearching = ref(false);
+const productSearching = ref(false);
 const billNumberStatus = reactive({ checking: false, checked: false, exists: false });
 let billNumberTimer = null;
+let partySearchSeq = 0;
+let siteSearchSeq = 0;
+let applicatorSearchSeq = 0;
+let productSearchSeq = 0;
+let lastPartySearchKey = "";
+let lastSiteSearchKey = "";
+let lastApplicatorSearchKey = "";
+let lastProductSearchKey = "";
 
 const returnBills = ref([]);
 const selectedReturnBillId = ref("");
@@ -624,10 +645,7 @@ const selectedApplicator = computed({
   set: (applicator) => { selectedApplicatorId.value = applicator?._id || ""; },
 });
 
-const filteredProducts = computed(() => {
-  const q = productSearch.value.toLowerCase();
-  return products.value.filter((p) => (p.name || "").toLowerCase().includes(q));
-});
+const filteredProducts = computed(() => products.value);
 
 const subtotalAmount = computed(() =>
   roundCurrency(rows.value.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0)),
@@ -662,6 +680,10 @@ const netDifference = computed(() => roundCurrency(replacementTotal.value - tota
 const decimalStep = computed(() => (Number(currencyDecimals.value || 2) >= 3 ? "0.001" : "0.01"));
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "-");
+const mergeById = (list, item) => [
+  item,
+  ...list.filter((entry) => String(entry._id) !== String(item._id)),
+];
 
 const focusDate = () => invoiceDateInput.value?.focus?.();
 const focusBillNumber = () => billNumberInput.value?.focus?.();
@@ -716,6 +738,17 @@ const getProductCost = (productId) => {
   return Number(product?.lastPurchaseRate || product?.openingRate || 0);
 };
 
+const selectExistingProduct = async (product) => {
+  if (!product?._id) return false;
+  products.value = mergeById(products.value, product);
+  await addProduct(product);
+  selectedProduct.value = null;
+  productQuickCreateOpen.value = false;
+  await nextTick();
+  focusRowQuantity(rows.value.length - 1);
+  return true;
+};
+
 const updateRowFromRate = (row) => {
   const quantity = Number(row.quantity || 0);
   const rate = Number(row.rate || 0);
@@ -755,13 +788,90 @@ const closePanels = () => {
 
 const searchParties = async (term = "") => {
   const role = transactionType.value === "purchase" ? "supplier" : "customer";
-  const res = await http.get("/parties", { params: { search: term, role, limit: 20 }, skipNotify: true });
-  parties.value = res.data || [];
+  const key = `${role}|${term}`;
+  if (key === lastPartySearchKey && parties.value.length) return;
+  lastPartySearchKey = key;
+  const seq = ++partySearchSeq;
+  try {
+    const res = await http.get("/parties", { params: { search: term, role, limit: 20 }, skipNotify: true });
+    if (seq !== partySearchSeq) return;
+    parties.value = res.data || [];
+  } catch (err) {
+    if (seq === partySearchSeq) parties.value = [];
+  }
 };
 
 const searchProducts = async (term = "") => {
-  const res = await http.get("/products", { params: { search: term, status: "active", limit: 20 }, skipNotify: true });
-  products.value = res.data?.data || res.data || [];
+  const key = term;
+  if (key === lastProductSearchKey && products.value.length) return;
+  lastProductSearchKey = key;
+  const seq = ++productSearchSeq;
+  productSearching.value = true;
+  try {
+    const res = await http.get("/products", {
+      params: { search: term, status: "active", limit: 20, compact: true },
+      skipNotify: true,
+    });
+    if (seq !== productSearchSeq) return;
+    products.value = res.data?.data || res.data || [];
+  } catch (err) {
+    if (seq === productSearchSeq) products.value = [];
+  } finally {
+    if (seq === productSearchSeq) productSearching.value = false;
+  }
+};
+
+const searchSites = async (term = "") => {
+  const partyId = selectedParty.value?._id || "";
+  const key = `${partyId}|${term}`;
+  if (key === lastSiteSearchKey && sites.value.length) return;
+  lastSiteSearchKey = key;
+  const seq = ++siteSearchSeq;
+  sites.value = [];
+  assignedApplicators.value = [];
+  if (!partyId) return;
+  siteSearching.value = true;
+  try {
+    const res = await listSitesApi({
+      partyId,
+      includeOthers: true,
+      search: term,
+      limit: 20,
+      status: "active",
+    });
+    if (seq !== siteSearchSeq) return;
+    sites.value = res.data || [];
+  } catch (err) {
+    if (seq === siteSearchSeq) sites.value = [];
+  } finally {
+    if (seq === siteSearchSeq) siteSearching.value = false;
+  }
+};
+
+const searchApplicators = async (term = "") => {
+  const partyId = selectedParty.value?._id || "";
+  const siteId = selectedSiteId.value || "";
+  const key = `${partyId}|${siteId}|${term}`;
+  if (key === lastApplicatorSearchKey && assignedApplicators.value.length) return;
+  lastApplicatorSearchKey = key;
+  const seq = ++applicatorSearchSeq;
+  assignedApplicators.value = [];
+  if (!partyId || !siteId) return;
+  applicatorSearching.value = true;
+  try {
+    const res = await listAssignedApplicatorsBySiteApi({
+      partyId,
+      siteId,
+      search: term,
+      limit: 20,
+    });
+    if (seq !== applicatorSearchSeq) return;
+    assignedApplicators.value = res.data || [];
+  } catch (err) {
+    if (seq === applicatorSearchSeq) assignedApplicators.value = [];
+  } finally {
+    if (seq === applicatorSearchSeq) applicatorSearching.value = false;
+  }
 };
 
 const handleProductSelect = async (product) => {
@@ -912,14 +1022,14 @@ const createProductFromDraft = async () => {
       lowStockAlert,
     });
     const product = res.data;
-    products.value = [product, ...products.value.filter((entry) => String(entry._id) !== String(product._id))];
-    await addProduct(product);
-    selectedProduct.value = null;
-    productQuickCreateOpen.value = false;
-    await nextTick();
-    focusRowQuantity(rows.value.length - 1);
+    await selectExistingProduct(product);
     notifySuccess("Product created and selected successfully.");
   } catch (err) {
+    if (err.response?.status === 409 && err.response?.data?.existing) {
+      await selectExistingProduct(err.response.data.existing);
+      notifyWarning("Existing product selected.");
+      return;
+    }
     notifyError(parseApiError(err));
   } finally {
     creatingProduct.value = false;
@@ -975,7 +1085,7 @@ const confirmQuickCreate = async () => {
 
     if (confirmState.type === "site") {
       const res = await createSiteApi({ name: confirmState.name, partyId: selectedParty.value._id });
-      sites.value = [res.data, ...sites.value.filter((site) => String(site._id) !== String(res.data._id))];
+      sites.value = mergeById(sites.value, { ...res.data, isAssigned: true });
       selectedSiteId.value = res.data._id;
       await loadApplicatorsForSite(selectedParty.value._id, selectedSiteId.value, false);
       await nextTick();
@@ -1023,13 +1133,15 @@ const addProduct = async (product) => {
     });
     lastRate = lastRateRes.data?.lastRate ?? null;
   }
+  const defaultRate = Number(product.lastSalePrice || product.price || 0);
+  const rowRate = Number(lastRate ?? defaultRate);
   rows.value.push({
     productId: product._id,
     productName: product.name,
     unitName: product.unitName || product.unitId?.name || product.attributes?.unit || product.attributes?.Unit || "",
     quantity: 1,
-    rate: lastRate ?? 0,
-    totalAmount: roundCurrency(lastRate ?? 0),
+    rate: rowRate,
+    totalAmount: roundCurrency(rowRate),
     lastRate,
     availableStock: stockRes.data.stock ?? 0,
   });
@@ -1145,16 +1257,14 @@ const loadSitesForParty = async (partyId, resetSelection = true) => {
     selectedApplicatorId.value = "";
   }
   if (!partyId) return;
-  sites.value = (await listSitesApi({ partyId, includeOthers: true, limit: 100 })).data || [];
+  await searchSites("");
 };
 
 const loadApplicatorsForSite = async (partyId, siteId, resetSelection = true) => {
   assignedApplicators.value = [];
   if (resetSelection) selectedApplicatorId.value = "";
   if (!partyId || !siteId) return;
-  assignedApplicators.value = (
-    await listAssignedApplicatorsBySiteApi({ partyId, siteId })
-  ).data || [];
+  await searchApplicators("");
 };
 
 const loadEditInvoice = async () => {
@@ -1437,7 +1547,7 @@ onMounted(async () => {
   await ensureCompanySettingsLoaded();
   const initialRole = transactionType.value === "purchase" ? "supplier" : "customer";
   const [productRes, partyRes, bankRes, unitRes] = await Promise.all([
-    http.get("/products", { params: { status: "active", limit: 50 }, skipNotify: true }),
+    http.get("/products", { params: { status: "active", limit: 20, compact: true }, skipNotify: true }),
     getUsersApi({ role: initialRole, limit: 50 }),
     http.get("/bank-accounts"),
     listUnitsApi({ status: "active" }),
@@ -1446,6 +1556,8 @@ onMounted(async () => {
   parties.value = partyRes.data || [];
   bankAccounts.value = bankRes.data || [];
   units.value = unitRes.data || [];
+  lastProductSearchKey = "";
+  lastPartySearchKey = `${initialRole}|`;
   if (isEditMode.value) {
     await loadEditInvoice();
   } else {
@@ -1507,6 +1619,7 @@ watch(
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .head-right {
@@ -1514,6 +1627,41 @@ watch(
   gap: 12px;
   align-items: flex-end;
   flex-wrap: wrap;
+}
+
+.invoice-info {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.invoice-info__grid {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 0.8fr) minmax(260px, 1fr);
+}
+
+.invoice-options {
+  align-content: start;
+  display: grid;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.option-title {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.option-check {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
 }
 
 .field-inline {
@@ -1884,6 +2032,14 @@ input[type="number"] {
 }
 
 @media (max-width: 960px) {
+  .invoice-info__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .invoice-options {
+    grid-column: 1 / -1;
+  }
+
   .panel.left {
     left: 0;
   }
@@ -1926,6 +2082,14 @@ input[type="number"] {
 }
 
 @media (max-width: 720px) {
+  .invoice-info__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-options {
+    grid-column: auto;
+  }
+
   input[type="number"] {
     width: 90px;
   }
